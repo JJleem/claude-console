@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Webhook, Plus, Trash2, Save, Globe, FolderOpen } from "lucide-react";
+import { Webhook, Plus, Trash2, Save, Globe, FolderOpen, Info } from "lucide-react";
 
 type HookEntry = { type: "command"; command: string };
 type HookMatcher = { matcher?: string; hooks: HookEntry[] };
@@ -33,6 +33,37 @@ const EVENT_COLORS: Record<EventType, string> = {
   PostToolUse:   "text-green-400 border-green-500/30 bg-green-500/10",
   Stop:          "text-orange-400 border-orange-500/30 bg-orange-500/10",
   Notification:  "text-purple-400 border-purple-500/30 bg-purple-500/10",
+};
+
+const EVENT_INFO: Record<EventType, { desc: string; examples: string[] }> = {
+  PreToolUse: {
+    desc: "Claude가 툴(Bash, Edit, Write 등)을 실행하기 직전에 호출됩니다. 종료 코드 2를 반환하면 해당 툴 실행을 차단할 수 있습니다.",
+    examples: [
+      "echo '[PreToolUse] tool=$CLAUDE_TOOL_NAME' >> ~/claude-hooks.log",
+      "node ~/scripts/notify-slack.js pre \"$CLAUDE_TOOL_NAME\"",
+    ],
+  },
+  PostToolUse: {
+    desc: "툴 실행이 완료된 직후 호출됩니다. 실행 결과를 로깅하거나 후처리 작업에 활용합니다.",
+    examples: [
+      "echo '[PostToolUse] $CLAUDE_TOOL_NAME done' >> ~/claude-hooks.log",
+      "curl -s -X POST http://localhost:4000/hook -d '{\"event\":\"PostToolUse\"}'",
+    ],
+  },
+  Stop: {
+    desc: "Claude가 응답을 완전히 마치고 멈출 때 호출됩니다. 작업 완료 알림, 요약 저장 등에 사용합니다.",
+    examples: [
+      "osascript -e 'display notification \"Claude finished\" with title \"Claude Code\"'",
+      "echo \"$(date): session ended\" >> ~/claude-sessions.log",
+    ],
+  },
+  Notification: {
+    desc: "Claude가 사용자 입력을 기다리거나 중요한 상태 변화가 있을 때 알림을 보냅니다.",
+    examples: [
+      "osascript -e 'display notification \"Claude needs input\" with title \"Claude Code\"'",
+      "say \"Claude is waiting for you\"",
+    ],
+  },
 };
 
 function HookList({
@@ -227,6 +258,28 @@ export default function HooksPage() {
                           {(hooks[event]?.length ?? 0)}개
                         </span>
                       </div>
+
+                      {/* 설명 */}
+                      <div className="rounded-md border border-border bg-accent/20 px-3 py-2 space-y-2">
+                        <div className="flex items-start gap-1.5">
+                          <Info size={11} className="text-muted-foreground shrink-0 mt-0.5" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {EVENT_INFO[event].desc}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground/60 font-medium">예시</p>
+                          {EVENT_INFO[event].examples.map((ex, i) => (
+                            <code
+                              key={i}
+                              className="block text-xs font-mono text-foreground/70 bg-secondary rounded px-2 py-1 truncate"
+                            >
+                              {ex}
+                            </code>
+                          ))}
+                        </div>
+                      </div>
+
                       <HookList
                         event={event}
                         matchers={hooks[event] ?? []}
