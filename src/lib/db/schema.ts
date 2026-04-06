@@ -48,7 +48,17 @@ export const projects = sqliteTable("projects", {
   path: text("path").notNull().unique(),
 });
 
+export const promptVersions = sqliteTable("prompt_versions", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
+  projectId: text("project_id").notNull(),
+  label: text("label").notNull(),   // "v1", "v2", 사용자 지정 이름
+  content: text("content").notNull(),
+  tokenCount: integer("token_count").default(0),
+});
+
 export type Project = typeof projects.$inferSelect;
+export type PromptVersion = typeof promptVersions.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type Evaluation = typeof evaluations.$inferSelect;
