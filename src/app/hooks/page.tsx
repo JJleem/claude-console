@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Webhook, Plus, Trash2, Save, Globe, FolderOpen, Info } from "lucide-react";
+import { Webhook, Plus, Trash2, Save, Globe, FolderOpen } from "lucide-react";
 
 type HookEntry = { type: "command"; command: string };
 type HookMatcher = { matcher?: string; hooks: HookEntry[] };
@@ -29,10 +29,10 @@ const EVENT_TYPES = ["PreToolUse", "PostToolUse", "Stop", "Notification"] as con
 type EventType = (typeof EVENT_TYPES)[number];
 
 const EVENT_COLORS: Record<EventType, string> = {
-  PreToolUse:    "text-blue-400 border-blue-500/30 bg-blue-500/10",
-  PostToolUse:   "text-green-400 border-green-500/30 bg-green-500/10",
-  Stop:          "text-orange-400 border-orange-500/30 bg-orange-500/10",
-  Notification:  "text-purple-400 border-purple-500/30 bg-purple-500/10",
+  PreToolUse:   "text-blue-400 border-blue-500/30 bg-blue-500/10",
+  PostToolUse:  "text-green-400 border-green-500/30 bg-green-500/10",
+  Stop:         "text-orange-400 border-orange-500/30 bg-orange-500/10",
+  Notification: "text-purple-400 border-purple-500/30 bg-purple-500/10",
 };
 
 const EVENT_INFO: Record<EventType, { desc: string; examples: string[] }> = {
@@ -67,17 +67,15 @@ const EVENT_INFO: Record<EventType, { desc: string; examples: string[] }> = {
 };
 
 function HookList({
-  event,
   matchers,
   onDelete,
 }: {
-  event: EventType;
   matchers: HookMatcher[];
   onDelete: (idx: number) => void;
 }) {
   if (matchers.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground px-1 py-3">
+      <p className="text-xs text-muted-foreground py-4 text-center">
         등록된 훅이 없습니다
       </p>
     );
@@ -119,60 +117,110 @@ function HookList({
   );
 }
 
-function EventSection({
-  event,
-  hooks,
+function ScopePanel({
   scope,
+  hooks,
+  saving,
+  onSave,
   onDelete,
+  onAdd,
 }: {
-  event: EventType;
-  hooks: HooksConfig;
   scope: "global" | "project";
-  onDelete: (scope: "global" | "project", event: EventType, idx: number) => void;
+  hooks: HooksConfig;
+  saving: boolean;
+  onSave: () => void;
+  onDelete: (event: EventType, idx: number) => void;
+  onAdd: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const count = hooks[event]?.length ?? 0;
+  const [selectedEvent, setSelectedEvent] = useState<EventType>("PreToolUse");
+  const scopeLabel = scope === "global" ? "~/.claude/settings.json" : ".claude/settings.json";
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Badge className={`text-xs ${EVENT_COLORS[event]}`} variant="outline">
-          {event}
-        </Badge>
-        <span className="text-xs text-muted-foreground">{count}개</span>
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Info size={11} />
-          {open ? "설명 닫기" : "설명 보기"}
-        </button>
+    <div className="flex flex-col h-full">
+      {/* toolbar */}
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-border shrink-0">
+        <p className="text-xs text-muted-foreground font-mono">{scopeLabel}</p>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={onAdd}>
+            <Plus size={13} className="mr-1" />
+            훅 추가
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={saving}>
+            <Save size={13} className="mr-1" />
+            {saving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
       </div>
 
-      <HookList
-        event={event}
-        matchers={hooks[event] ?? []}
-        onDelete={(idx) => onDelete(scope, event, idx)}
-      />
-
-      {open && (
-        <div className="rounded-md border border-border bg-accent/20 px-3 py-2 space-y-2">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {EVENT_INFO[event].desc}
-          </p>
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground/60 font-medium">예시</p>
-            {EVENT_INFO[event].examples.map((ex, i) => (
-              <code
-                key={i}
-                className="block text-xs font-mono text-foreground/70 bg-secondary rounded px-2 py-1 truncate"
+      {/* 2-panel body */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: event type list */}
+        <div className="w-48 shrink-0 border-r border-border flex flex-col py-2">
+          {EVENT_TYPES.map((event) => {
+            const count = hooks[event]?.length ?? 0;
+            const isActive = selectedEvent === event;
+            return (
+              <button
+                key={event}
+                onClick={() => setSelectedEvent(event)}
+                className={`flex items-center justify-between px-4 py-2.5 text-left transition-colors ${
+                  isActive
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                }`}
               >
-                {ex}
-              </code>
-            ))}
-          </div>
+                <span className="text-xs font-medium">{event}</span>
+                {count > 0 && (
+                  <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    {count}
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
         </div>
-      )}
+
+        {/* Right: selected event detail */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-5 space-y-4">
+              {/* badge + count */}
+              <div className="flex items-center gap-2">
+                <Badge className={`text-xs ${EVENT_COLORS[selectedEvent]}`} variant="outline">
+                  {selectedEvent}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {hooks[selectedEvent]?.length ?? 0}개
+                </span>
+              </div>
+
+              {/* hook list */}
+              <HookList
+                matchers={hooks[selectedEvent] ?? []}
+                onDelete={(idx) => onDelete(selectedEvent, idx)}
+              />
+
+              {/* description */}
+              <div className="rounded-md border border-border bg-accent/20 px-3 py-3 space-y-2 mt-2">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {EVENT_INFO[selectedEvent].desc}
+                </p>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground/60 font-medium">예시</p>
+                  {EVENT_INFO[selectedEvent].examples.map((ex, i) => (
+                    <code
+                      key={i}
+                      className="block text-xs font-mono text-foreground/70 bg-secondary rounded px-2 py-1"
+                    >
+                      {ex}
+                    </code>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
     </div>
   );
 }
@@ -183,7 +231,6 @@ export default function HooksPage() {
   const [projectHooks, setProjectHooks] = useState<HooksConfig>({});
   const [saving, setSaving] = useState<"global" | "project" | null>(null);
 
-  // Add hook dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addScope, setAddScope] = useState<"global" | "project">("global");
   const [newEvent, setNewEvent] = useState<EventType>("PostToolUse");
@@ -200,9 +247,7 @@ export default function HooksPage() {
     setProjectHooks(data.project ?? {});
   }, [selectedProject]);
 
-  useEffect(() => {
-    fetchHooks();
-  }, [fetchHooks]);
+  useEffect(() => { fetchHooks(); }, [fetchHooks]);
 
   async function handleSave(scope: "global" | "project") {
     setSaving(scope);
@@ -228,22 +273,14 @@ export default function HooksPage() {
     if (!newCommand.trim()) return;
     const setter = addScope === "global" ? setGlobalHooks : setProjectHooks;
     const hooks = addScope === "global" ? globalHooks : projectHooks;
-    const newMatcher_obj: HookMatcher = {
+    const entry: HookMatcher = {
       ...(newMatcher.trim() && { matcher: newMatcher.trim() }),
       hooks: [{ type: "command", command: newCommand.trim() }],
     };
-    setter({
-      ...hooks,
-      [newEvent]: [...(hooks[newEvent] ?? []), newMatcher_obj],
-    });
+    setter({ ...hooks, [newEvent]: [...(hooks[newEvent] ?? []), entry] });
     setNewCommand("");
     setNewMatcher("");
     setDialogOpen(false);
-  }
-
-  function openAddDialog(scope: "global" | "project") {
-    setAddScope(scope);
-    setDialogOpen(true);
   }
 
   const totalCount = (h: HooksConfig) =>
@@ -258,69 +295,42 @@ export default function HooksPage() {
         <ProjectSwitcher />
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-6 max-w-4xl space-y-6">
-          <Tabs defaultValue="project">
+      {/* Scope tabs — fill remaining height */}
+      <div className="flex-1 overflow-hidden">
+        <Tabs defaultValue="project" className="h-full flex flex-col">
+          <div className="px-5 pt-3 shrink-0">
             <TabsList>
               <TabsTrigger value="project" className="gap-1.5 text-xs">
                 <FolderOpen size={12} />
                 프로젝트
                 {totalCount(projectHooks) > 0 && (
-                  <Badge variant="secondary" className="text-xs h-4 px-1">
-                    {totalCount(projectHooks)}
-                  </Badge>
+                  <Badge variant="secondary" className="text-xs h-4 px-1">{totalCount(projectHooks)}</Badge>
                 )}
               </TabsTrigger>
               <TabsTrigger value="global" className="gap-1.5 text-xs">
                 <Globe size={12} />
                 글로벌
                 {totalCount(globalHooks) > 0 && (
-                  <Badge variant="secondary" className="text-xs h-4 px-1">
-                    {totalCount(globalHooks)}
-                  </Badge>
+                  <Badge variant="secondary" className="text-xs h-4 px-1">{totalCount(globalHooks)}</Badge>
                 )}
               </TabsTrigger>
             </TabsList>
+          </div>
 
-            {(["project", "global"] as const).map((scope) => {
-              const hooks = scope === "global" ? globalHooks : projectHooks;
-              const scopeLabel = scope === "global" ? "~/.claude/settings.json" : `.claude/settings.json`;
-
-              return (
-                <TabsContent key={scope} value={scope} className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground font-mono">{scopeLabel}</p>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openAddDialog(scope)}>
-                        <Plus size={13} className="mr-1" />
-                        훅 추가
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleSave(scope)}
-                        disabled={saving === scope}
-                      >
-                        <Save size={13} className="mr-1" />
-                        {saving === scope ? "저장 중..." : "저장"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {EVENT_TYPES.map((event) => (
-                    <EventSection
-                      key={event}
-                      event={event}
-                      hooks={hooks}
-                      scope={scope}
-                      onDelete={handleDelete}
-                    />
-                  ))}
-                </TabsContent>
-              );
-            })}
-          </Tabs>
-        </div>
-      </ScrollArea>
+          {(["project", "global"] as const).map((scope) => (
+            <TabsContent key={scope} value={scope} className="flex-1 overflow-hidden mt-0 pt-0">
+              <ScopePanel
+                scope={scope}
+                hooks={scope === "global" ? globalHooks : projectHooks}
+                saving={saving === scope}
+                onSave={() => handleSave(scope)}
+                onDelete={(event, idx) => handleDelete(scope, event, idx)}
+                onAdd={() => { setAddScope(scope); setDialogOpen(true); }}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
 
       {/* Add Hook Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -331,7 +341,6 @@ export default function HooksPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-5 pt-2">
-            {/* Event Type */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground">이벤트 타입</label>
               <div className="grid grid-cols-2 gap-2">
@@ -342,7 +351,7 @@ export default function HooksPage() {
                     className={`text-left px-3 py-2.5 rounded-md border transition-colors ${
                       newEvent === e
                         ? EVENT_COLORS[e]
-                        : "border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                        : "border-border text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <p className="text-xs font-medium">{e}</p>
@@ -352,7 +361,6 @@ export default function HooksPage() {
               </div>
             </div>
 
-            {/* Matcher */}
             {(newEvent === "PreToolUse" || newEvent === "PostToolUse") && (
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
@@ -367,7 +375,6 @@ export default function HooksPage() {
               </div>
             )}
 
-            {/* Command */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">
                 실행할 커맨드 <span className="font-normal opacity-60">(shell 명령어)</span>
@@ -385,12 +392,8 @@ export default function HooksPage() {
             </div>
 
             <div className="flex gap-2 pt-1">
-              <Button onClick={handleAdd} disabled={!newCommand.trim()} className="flex-1">
-                추가
-              </Button>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                취소
-              </Button>
+              <Button onClick={handleAdd} disabled={!newCommand.trim()} className="flex-1">추가</Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
             </div>
           </div>
         </DialogContent>
