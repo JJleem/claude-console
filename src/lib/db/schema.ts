@@ -57,8 +57,19 @@ export const promptVersions = sqliteTable("prompt_versions", {
   tokenCount: integer("token_count").default(0),
 });
 
+export const hookEvents = sqliteTable("hook_events", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
+  event: text("event").notNull(),      // PreToolUse | PostToolUse | Stop | Notification
+  tool: text("tool"),                  // Bash, Edit, Write, ...
+  input: text("input"),
+  output: text("output"),
+  sessionId: text("session_id"),
+});
+
 export type Project = typeof projects.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type Evaluation = typeof evaluations.$inferSelect;
+export type HookEvent = typeof hookEvents.$inferSelect;

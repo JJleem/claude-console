@@ -1,32 +1,54 @@
-import { liveEmitter, liveEvents, type LiveEvent } from "@/lib/live-emitter";
+import { liveEmitter, type LiveEvent } from "@/lib/live-emitter";
+import { db } from "@/lib/db";
+import { hookEvents } from "@/lib/db/schema";
+import { desc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const encoder = new TextEncoder();
 
+  // load history from DB
+  const rows = await db
+    .select()
+    .from(hookEvents)
+    .orderBy(desc(hookEvents.createdAt))
+    .limit(200);
+
+  const history: LiveEvent[] = rows.reverse().map((r) => ({
+    id: r.id,
+    event: r.event as LiveEvent["event"],
+    tool: r.tool ?? undefined,
+    input: r.input ?? undefined,
+    output: r.output ?? undefined,
+    sessionId: r.sessionId ?? undefined,
+    timestamp: new Date(r.createdAt).getTime(),
+  }));
+
   const stream = new ReadableStream({
     start(controller) {
-      // send recent history on connect
-      const history = [...liveEvents];
       controller.enqueue(
         encoder.encode(`data: ${JSON.stringify({ type: "history", events: history })}\n\n`)
       );
 
       function onEvent(e: LiveEvent) {
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ type: "event", event: e })}\n\n`)
-        );
+        try {
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: "event", event: e })}\n\n`)
+          );
+        } catch {
+          liveEmitter.off("event", onEvent);
+        }
       }
 
       liveEmitter.on("event", onEvent);
 
-      // heartbeat every 15s to keep connection alive
       const hb = setInterval(() => {
         try {
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch {
           clearInterval(hb);
+          liveEmitter.off("event", onEvent);
         }
       }, 15000);
 

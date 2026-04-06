@@ -50,31 +50,41 @@ function tryParseInput(input?: string): string {
   }
 }
 
-function EventRow({ e }: { e: LiveEvent }) {
+function EventRow({ e, onDelete }: { e: LiveEvent; onDelete: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const eventColor = EVENT_COLORS[e.event] ?? "text-muted-foreground border-border";
   const toolColor = e.tool ? (TOOL_COLORS[e.tool] ?? "text-muted-foreground border-border bg-secondary") : "";
   const preview = tryParseInput(e.input);
 
   return (
-    <div
-      className="flex items-start gap-3 px-4 py-2.5 border-b border-border/50 hover:bg-accent/20 transition-colors cursor-pointer"
-      onClick={() => preview && setExpanded((v) => !v)}
-    >
-      <span className="text-xs text-muted-foreground/60 font-mono w-20 shrink-0 pt-0.5">
+    <div className="group flex items-start gap-3 px-4 py-2.5 border-b border-border/50 hover:bg-accent/20 transition-colors">
+      <span
+        className="text-xs text-muted-foreground/60 font-mono w-20 shrink-0 pt-0.5 cursor-pointer"
+        onClick={() => preview && setExpanded((v) => !v)}
+      >
         {formatTime(e.timestamp)}
       </span>
-      <div className="flex items-center gap-2 w-28 shrink-0">
+      <div
+        className="flex items-center gap-2 w-28 shrink-0 cursor-pointer"
+        onClick={() => preview && setExpanded((v) => !v)}
+      >
         <Badge variant="outline" className={`text-xs ${eventColor}`}>
           {e.event.replace("ToolUse", "")}
         </Badge>
       </div>
       {e.tool && (
-        <Badge variant="outline" className={`text-xs shrink-0 ${toolColor}`}>
+        <Badge
+          variant="outline"
+          className={`text-xs shrink-0 cursor-pointer ${toolColor}`}
+          onClick={() => preview && setExpanded((v) => !v)}
+        >
           {e.tool}
         </Badge>
       )}
-      <div className="flex-1 min-w-0">
+      <div
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={() => preview && setExpanded((v) => !v)}
+      >
         {!expanded ? (
           <code className="text-xs text-muted-foreground font-mono truncate block">
             {preview}
@@ -85,6 +95,14 @@ function EventRow({ e }: { e: LiveEvent }) {
           </pre>
         )}
       </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-destructive transition-opacity"
+        onClick={(ev) => { ev.stopPropagation(); onDelete(); }}
+      >
+        <Trash2 size={11} />
+      </Button>
     </div>
   );
 }
@@ -97,6 +115,24 @@ export default function LivePage() {
   const [copied, setCopied] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  async function deleteOne(id: string) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    await fetch("/api/live/event", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+  }
+
+  async function deleteAll() {
+    setEvents([]);
+    await fetch("/api/live/event", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  }
 
   useEffect(() => {
     const es = new EventSource("/api/live/stream");
@@ -148,7 +184,7 @@ export default function LivePage() {
             size="sm"
             variant="ghost"
             className="text-muted-foreground"
-            onClick={() => setEvents([])}
+            onClick={deleteAll}
           >
             <Trash2 size={13} />
           </Button>
@@ -223,7 +259,7 @@ export default function LivePage() {
         ) : (
           <div>
             {filtered.map((e) => (
-              <EventRow key={e.id} e={e} />
+              <EventRow key={e.id} e={e} onDelete={() => deleteOne(e.id)} />
             ))}
             <div ref={bottomRef} />
           </div>
