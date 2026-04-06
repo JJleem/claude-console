@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Save, GitBranch, Clock, FileText, AlertCircle } from "lucide-react";
+import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import type { PromptVersion } from "@/lib/db/schema";
 
 // 대략적인 토큰 수 계산 (4자 = 1토큰)
@@ -82,12 +83,17 @@ export default function PromptsPage() {
 
   if (!selectedProject) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center space-y-2">
-          <AlertCircle size={32} className="text-muted-foreground mx-auto" />
-          <p className="text-sm text-muted-foreground">
-            Settings에서 프로젝트를 먼저 선택해주세요
-          </p>
+      <div className="flex flex-col h-full">
+        <div className="px-5 py-3 border-b border-border flex items-center gap-3">
+          <FileText size={14} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-foreground shrink-0">CLAUDE.md</span>
+          <ProjectSwitcher />
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-2">
+            <AlertCircle size={32} className="text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">프로젝트를 선택해주세요</p>
+          </div>
         </div>
       </div>
     );
@@ -99,11 +105,9 @@ export default function PromptsPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
-          <FileText size={14} className="text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">CLAUDE.md</span>
-          <span className="text-xs text-muted-foreground font-mono truncate">
-            {selectedProject.path}
-          </span>
+          <FileText size={14} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium text-foreground shrink-0">CLAUDE.md</span>
+          <ProjectSwitcher />
           <div className="ml-auto flex items-center gap-2">
             <Badge
               variant="outline"
