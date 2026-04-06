@@ -19,15 +19,52 @@ import type { Skill } from "@/app/api/skills/route";
 const DEFAULT_SKILL_TEMPLATE = (name: string) =>
 `---
 name: ${name}
-description:
+description: 스킬에 대한 한 줄 설명 (Claude가 자동 호출 여부 판단에 사용)
 allowed-tools: Read Bash
-argument-hint:
+argument-hint: <선택적 인자 힌트, 예: [file]>
 ---
 
 # ${name}
 
-여기에 스킬 지시사항을 작성하세요.
+## 이 스킬이 하는 일
+여기에 스킬의 목적을 설명하세요.
+
+## 실행 방법
+1. 첫 번째 단계
+2. 두 번째 단계
+3. 결과 출력
+
+## 예시
+사용자가 \`/${name} src/app\` 처럼 호출하면:
+- $ARGUMENTS 환경변수로 인자를 받을 수 있음
+- Read, Bash 등 allowed-tools 에 명시된 툴만 사용 가능
+
+## 참고
+- allowed-tools: 이 스킬에서 허용할 툴 목록 (Read, Bash, Edit, Write, Grep 등)
+- argument-hint: 슬래시 커맨드 자동완성 시 보여줄 힌트
+- description: Claude가 언제 이 스킬을 쓸지 판단하는 기준
 `;
+
+const EXAMPLE_SKILLS = [
+  {
+    dirName: "summarize",
+    description: "현재 프로젝트의 변경사항을 요약해줌",
+    allowedTools: ["Read", "Bash"],
+    argumentHint: "",
+  },
+  {
+    dirName: "review-pr",
+    description: "PR 코드를 리뷰하고 피드백 제공",
+    allowedTools: ["Read", "Bash", "Grep"],
+    argumentHint: "<PR번호>",
+  },
+  {
+    dirName: "commit",
+    description: "변경사항을 분석해 커밋 메시지 자동 생성 후 커밋",
+    allowedTools: ["Bash"],
+    argumentHint: "",
+  },
+];
 
 function SkillCard({
   skill,
@@ -165,12 +202,40 @@ export default function SkillsPage() {
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-2">
             {skills.length === 0 ? (
-              <div className="py-12 text-center space-y-2">
-                <Zap size={28} className="text-muted-foreground/30 mx-auto" />
-                <p className="text-xs text-muted-foreground">등록된 스킬이 없습니다</p>
-                <p className="text-xs text-muted-foreground/60">
-                  스킬은 Claude Code에서 <code className="font-mono">/skill-name</code> 으로 호출하는 커스텀 커맨드입니다
-                </p>
+              <div className="space-y-4 py-4">
+                <div className="text-center space-y-1.5 pb-2">
+                  <Zap size={24} className="text-muted-foreground/30 mx-auto" />
+                  <p className="text-xs text-muted-foreground">등록된 스킬이 없습니다</p>
+                  <p className="text-xs text-muted-foreground/50">
+                    스킬은 Claude Code에서 <code className="font-mono text-xs">/name</code> 으로 호출하는 커스텀 커맨드입니다
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground/60 font-medium px-1">예시 스킬</p>
+                  {EXAMPLE_SKILLS.map((ex) => (
+                    <div key={ex.dirName} className="flex items-start gap-3 px-4 py-3 rounded-lg border border-dashed border-border bg-accent/10">
+                      <div className="mt-0.5 w-7 h-7 rounded-md bg-primary/5 flex items-center justify-center shrink-0">
+                        <Zap size={13} className="text-primary/50" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-foreground/60">/{ex.dirName}</span>
+                          {ex.argumentHint && (
+                            <span className="text-xs text-muted-foreground/50 font-mono">{ex.argumentHint}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground/60">{ex.description}</p>
+                        <div className="flex gap-1">
+                          {ex.allowedTools.map((t) => (
+                            <Badge key={t} variant="outline" className="text-xs font-mono opacity-50">
+                              {t}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               skills.map((s) => (
