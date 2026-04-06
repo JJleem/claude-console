@@ -1,65 +1,160 @@
-import Image from "next/image";
+import { db } from "@/lib/db";
+import { runs } from "@/lib/db/schema";
+import { desc, gte } from "drizzle-orm";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ExternalLink } from "lucide-react";
 
-export default function Home() {
+async function getStats() {
+  const now = new Date();
+
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const [todayRuns, weekRuns, allRuns] = await Promise.all([
+    db.select().from(runs).where(gte(runs.createdAt, today.toISOString())),
+    db.select().from(runs).where(gte(runs.createdAt, weekAgo.toISOString())),
+    db.select().from(runs),
+  ]);
+
+  const recentRuns = await db
+    .select()
+    .from(runs)
+    .orderBy(desc(runs.createdAt))
+    .limit(5);
+
+  return {
+    today: {
+      calls: todayRuns.length,
+      cost: todayRuns.reduce((s, r) => s + r.costUsd, 0),
+      tokens: todayRuns.reduce((s, r) => s + r.inputTokens + r.outputTokens, 0),
+    },
+    week: {
+      calls: weekRuns.length,
+      cost: weekRuns.reduce((s, r) => s + r.costUsd, 0),
+    },
+    total: {
+      calls: allRuns.length,
+      cost: allRuns.reduce((s, r) => s + r.costUsd, 0),
+    },
+    recentRuns,
+  };
+}
+
+export default async function OverviewPage() {
+  const { today, week, total, recentRuns } = await getStats();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="p-8 max-w-5xl space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
+          <p className="text-sm text-muted-foreground mt-1">Claude API 사용 현황</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <a
+          href="https://console.anthropic.com/settings/billing"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors border border-border rounded-md px-3 py-2"
+        >
+          <ExternalLink size={12} />
+          크레딧 잔액 확인
+        </a>
+      </div>
+
+      {/* Today stats */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wider">오늘</p>
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "API 호출", value: today.calls.toString(), unit: "calls" },
+            { label: "비용", value: `$${today.cost.toFixed(4)}`, unit: "USD" },
+            { label: "토큰", value: today.tokens.toLocaleString(), unit: "tokens" },
+          ].map((stat) => (
+            <Card key={stat.label}>
+              <CardHeader className="pb-1">
+                <CardTitle className="text-xs font-medium text-muted-foreground">
+                  {stat.label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-semibold text-foreground">{stat.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{stat.unit}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
+      </div>
+
+      {/* Week / Total */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              최근 7일
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-semibold text-foreground">
+                ${week.cost.toFixed(4)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">{week.calls}회 호출</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardTitle className="text-xs font-medium text-muted-foreground">
+              누적 총합
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-end justify-between">
+            <div>
+              <p className="text-2xl font-semibold text-primary">
+                ${total.cost.toFixed(4)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">{total.calls}회 호출</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Runs */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">최근 실행</CardTitle>
+        </CardHeader>
+        <Separator />
+        {recentRuns.length === 0 ? (
+          <CardContent className="py-12 text-center text-muted-foreground text-sm">
+            아직 실행 기록이 없습니다.{" "}
+            <span className="text-primary">Runs</span> 탭에서 테스트해보세요.
+          </CardContent>
+        ) : (
+          <div className="divide-y divide-border">
+            {recentRuns.map((run) => (
+              <div key={run.id} className="px-5 py-3 flex items-center gap-3 text-sm">
+                <span className="text-muted-foreground font-mono text-xs w-20 shrink-0">
+                  {new Date(run.createdAt).toLocaleTimeString("ko-KR")}
+                </span>
+                <Badge variant="secondary" className="font-mono text-xs shrink-0">
+                  {run.model.replace("claude-", "")}
+                </Badge>
+                <span className="flex-1 text-foreground truncate">{run.userPrompt}</span>
+                <span className="text-xs font-mono text-primary shrink-0">
+                  ${run.costUsd.toFixed(5)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

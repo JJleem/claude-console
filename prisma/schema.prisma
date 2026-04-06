@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Run {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  costUsd      Float
+  durationMs   Int
+  systemPrompt String?
+  userPrompt   String
+  response     String
+  hasImage     Boolean  @default(false)
+  agentId      String?
+  parentRunId  String?
+  metadata     String?  // JSON string
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  name      String
+  status    String   // running | completed | failed
+  totalRuns Int      @default(0)
+  totalCost Float    @default(0)
+  metadata  String?  // JSON string
+}

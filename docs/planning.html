@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Console 기획서</title>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #1c2128;
+    --bg-card: #21262d;
+    --bg-card-hover: #2d333b;
+    --border: #30363d;
+    --border-subtle: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent-blue: #388bfd;
+    --accent-blue-light: #79c0ff;
+    --accent-green: #3fb950;
+    --accent-green-light: #56d364;
+    --accent-purple: #bc8cff;
+    --accent-orange: #ffa657;
+    --accent-red: #ff7b72;
+    --accent-yellow: #e3b341;
+    --accent-teal: #39d353;
+    --gradient-1: linear-gradient(135deg, #388bfd22, #bc8cff22);
+    --gradient-cover: linear-gradient(160deg, #0d1117 0%, #161b22 40%, #1c2128 100%);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ── PAGE WRAPPER ── */
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px 60px 60px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, #388bfd18 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -50px;
+    left: -100px;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, #bc8cff12 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .cover-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .cover-title {
+    font-size: 72px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover-subtitle-line {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text-secondary);
+    letter-spacing: -0.5px;
+    margin-bottom: 32px;
+  }
+
+  .cover-description {
+    font-size: 18px;
+    color: var(--text-secondary);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .cover-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cover-meta-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .cover-meta-value {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .cover-meta-divider {
+    width: 1px;
+    height: 36px;
+    background: var(--border);
+  }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 72px 0 0;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .section-number {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    min-width: 32px;
+  }
+
+  .section-title {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+
+  .section-title-accent {
+    color: var(--accent-blue-light);
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .card-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .card-grid-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  /* ── OVERVIEW ── */
+  .overview-highlight {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    border-left: 3px solid var(--accent-blue);
+  }
+
+  .overview-highlight p {
+    font-size: 17px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+  }
+
+  .overview-highlight p strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value.blue { color: var(--accent-blue-light); }
+  .stat-value.green { color: var(--accent-green-light); }
+  .stat-value.purple { color: var(--accent-purple); }
+  .stat-value.orange { color: var(--accent-orange); }
+
+  /* ── CONCEPT ── */
+  .concept-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 24px;
+    background-image: var(--gradient-1);
+  }
+
+  .concept-main {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  .concept-sub {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+  }
+
+  .tag {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid;
+  }
+
+  .tag.blue { background: #388bfd18; border-color: #388bfd40; color: var(--accent-blue-light); }
+  .tag.green { background: #3fb95018; border-color: #3fb95040; color: var(--accent-green-light); }
+  .tag.purple { background: #bc8cff18; border-color: #bc8cff40; color: var(--accent-purple); }
+  .tag.orange { background: #ffa65718; border-color: #ffa65740; color: var(--accent-orange); }
+  .tag.red { background: #ff7b7218; border-color: #ff7b7240; color: var(--accent-red); }
+  .tag.yellow { background: #e3b34118; border-color: #e3b34140; color: var(--accent-yellow); }
+
+  /* ── SIDEBAR VISUAL ── */
+  .sidebar-diagram {
+    display: flex;
+    gap: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 32px;
+    min-height: 520px;
+  }
+
+  .sidebar-nav {
+    width: 220px;
+    background: var(--bg-tertiary);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-nav-header {
+    padding: 8px 16px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 8px;
+  }
+
+  .sidebar-nav-logo {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-nav-version {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    margin: 1px 8px;
+    transition: all 0.15s;
+  }
+
+  .sidebar-item.active {
+    background: var(--accent-blue);
+    color: white;
+    font-weight: 500;
+  }
+
+  .sidebar-item:not(.active):hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  .sidebar-item-icon {
+    font-size: 14px;
+    width: 18px;
+    text-align: center;
+  }
+
+  .sidebar-content {
+    flex: 1;
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .sidebar-content-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 20px;
+  }
+
+  .mock-chart {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .mock-chart-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .mock-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 60px;
+  }
+
+  .mock-bar {
+    flex: 1;
+    background: var(--accent-blue);
+    border-radius: 3px 3px 0 0;
+    opacity: 0.7;
+  }
+
+  .mock-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .mock-metric {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .mock-metric-val {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent-blue-light);
+    margin-bottom: 2px;
+  }
+
+  .mock-metric-lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  /* ── FEATURE SPECS ── */
+  .feature-section {
+    margin-bottom: 40px;
+  }
+
+  .feature-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .feature-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .feature-icon-wrap.blue { background: #388bfd18; border: 1px solid #388bfd40; }
+  .feature-icon-wrap.green { background: #3fb95018; border: 1px solid #3fb95040; }
+  .feature-icon-wrap.purple { background: #bc8cff18; border: 1px solid #bc8cff40; }
+  .feature-icon-wrap.orange { background: #ffa65718; border: 1px solid #ffa65740; }
+  .feature-icon-wrap.red { background: #ff7b7218; border: 1px solid #ff7b7240; }
+  .feature-icon-wrap.yellow { background: #e3b34118; border: 1px solid #e3b34140; }
+  .feature-icon-wrap.teal { background: #39d35318; border: 1px solid #39d35340; }
+  .feature-icon-wrap.gray { background: #6e768118; border: 1px solid #6e768140; }
+
+  .feature-title-group {}
+
+  .feature-name {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+  }
+
+  .feature-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .feature-body {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+
+  .feature-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+
+  .feature-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .feature-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .feature-list li::before {
+    content: '▸';
+    color: var(--accent-blue);
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 11px;
+  }
+
+  .feature-list li strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .feature-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .feature-tag {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  /* ── LEARNING ROADMAP ── */
+  .roadmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .roadmap-table th {
+    background: var(--bg-tertiary);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .roadmap-table td {
+    padding: 14px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-subtle);
+    vertical-align: top;
+  }
+
+  .roadmap-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .roadmap-table tr:hover td {
+    background: var(--bg-card-hover);
+  }
+
+  .roadmap-table td:first-child {
+    color: var(--text-primary);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .roadmap-table td:nth-child(2) {
+    color: var(--text-secondary);
+  }
+
+  .roadmap-table td:nth-child(3) {
+    color: var(--accent-blue-light);
+  }
+
+  .roadmap-table td:nth-child(4) {
+    color: var(--accent-green-light);
+  }
+
+  .roadmap-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 2px;
+  }
+
+  .roadmap-badge.new { background: #3fb95020; color: var(--accent-green-light); border: 1px solid #3fb95040; }
+  .roadmap-badge.known { background: #388bfd20; color: var(--accent-blue-light); border: 1px solid #388bfd40; }
+
+  /* ── LEARNING MAP VISUAL ── */
+  .learn-map {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 40px;
+  }
+
+  .learn-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .learn-col-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    padding: 0 4px;
+  }
+
+  .learn-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .learn-item.known { border-color: #388bfd40; color: var(--accent-blue-light); }
+  .learn-item.new { border-color: #3fb95040; color: var(--accent-green-light); }
+
+  .learn-arrow-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 24px;
+    gap: 10px;
+  }
+
+  .learn-arrow {
+    font-size: 18px;
+    color: var(--text-muted);
+    line-height: 1;
+  }
+
+  /* ── TECH STACK ── */
+  .tech-category {
+    margin-bottom: 28px;
+  }
+
+  .tech-category-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 12px;
+  }
+
+  .tech-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .tech-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 160px;
+  }
+
+  .tech-item-icon {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
+  }
+
+  .tech-item-info {}
+
+  .tech-item-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .tech-item-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* ── PRIORITY ── */
+  .priority-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .priority-item {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: center;
+    gap: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s;
+  }
+
+  .priority-item:last-child {
+    border-bottom: none;
+  }
+
+  .priority-item:hover {
+    background: var(--bg-card-hover);
+  }
+
+  .priority-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 20px;
+    border-right: 1px solid var(--border-subtle);
+  }
+
+  .priority-num.p1 { color: var(--accent-blue-light); background: #388bfd10; }
+  .priority-num.p2 { color: var(--accent-purple); background: #bc8cff10; }
+  .priority-num.p3 { color: var(--accent-orange); background: #ffa65710; }
+  .priority-num.p4 { color: var(--accent-green-light); background: #3fb95010; }
+  .priority-num.p5 { color: var(--accent-yellow); background: #e3b34110; }
+
+  .priority-content {
+    padding: 20px 24px;
+  }
+
+  .priority-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .priority-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  .priority-badge-wrap {
+    padding: 20px 24px 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+  }
+
+  .priority-tech {
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    white-space: nowrap;
+  }
+
+  /* ── PROCESS ── */
+  .process-item {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 24px;
+    align-items: flex-start;
+  }
+
+  .process-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-blue-light);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .process-body {}
+
+  .process-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .process-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+
+  /* ── DIVIDER ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 64px 0 0;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 32px 0;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-left {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .footer-right {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-align: right;
+  }
+
+  /* ── CODE ── */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: var(--accent-purple);
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    body {
+      background: white;
+      color: #1a1a2e;
+      font-size: 13px;
+    }
+
+    .cover::before, .cover::after { display: none; }
+
+    :root {
+      --bg-primary: white;
+      --bg-secondary: #f6f8fa;
+      --bg-tertiary: #f0f2f5;
+      --bg-card: #f6f8fa;
+      --bg-card-hover: #eef0f3;
+      --border: #d0d7de;
+      --border-subtle: #e8ebef;
+      --text-primary: #1a1a2e;
+      --text-secondary: #444d56;
+      --text-muted: #6a737d;
+      --accent-blue: #0366d6;
+      --accent-blue-light: #0366d6;
+      --accent-green: #28a745;
+      --accent-green-light: #28a745;
+      --accent-purple: #6f42c1;
+      --accent-orange: #e36209;
+      --accent-red: #cb2431;
+      --accent-yellow: #735c0f;
+      --gradient-1: none;
+    }
+
+    .cover { min-height: auto; padding: 40px 0; page-break-after: always; }
+    .cover-title { -webkit-text-fill-color: #1a1a2e; background: none; color: #1a1a2e; }
+    .section { padding-top: 40px; }
+    .feature-section { page-break-inside: avoid; }
+    .priority-item { page-break-inside: avoid; }
+    .sidebar-diagram { page-break-inside: avoid; }
+
+    .tag, .feature-tag, .priority-tech, code {
+      border-color: #d0d7de !important;
+      background: #f6f8fa !important;
+      color: #444d56 !important;
+    }
+
+    @page {
+      margin: 20mm 15mm;
+      size: A4;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════
+       COVER
+  ═══════════════════════════════════════════ -->
+  <div class="cover">
+    <div class="cover-badge">
+      <span class="cover-badge-dot"></span>
+      Project Planning Document · 2026
+    </div>
+
+    <div class="cover-title">Claude Console</div>
+    <div class="cover-subtitle-line">Local Dashboard for Claude Code</div>
+
+    <p class="cover-description">
+      Claude Code의 모든 API 호출을 추적하고, 프롬프트를 버전 관리하며,
+      RAG 기반 메모리를 관리하고, LLM-as-judge Eval을 실행하는
+      <strong>개발자 전용 로컬 대시보드</strong>입니다.
+      RAG, Tool Use, Context Engineering, Eval을
+      직접 구현하며 AI Application Engineer 핵심 역량을 체득합니다.
+    </p>
+
+    <div class="cover-meta">
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">작성일</span>
+        <span class="cover-meta-value">2026년 4월</span>
+      </div>
+      <div class="cover-meta-divider"></div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">버전</span>
+        <span class="cover-meta-value">v1.0 Draft</span>
+      </div>
+      <div class="cover-meta-divider"></div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">실행 환경</span>
+        <span class="cover-meta-value">localhost:3000 (Local Only)</span>
+      </div>
+      <div class="cover-meta-divider"></div>
+      <div class="cover-meta-item">
+        <span class="cover-meta-label">목적</span>
+        <span class="cover-meta-value">AI Application Engineer 역량 심화</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       01 · 프로젝트 개요
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">01</span>
+      <h2 class="section-title">프로젝트 <span class="section-title-accent">개요</span></h2>
+    </div>
+
+    <div class="overview-highlight">
+      <p>
+        <strong>Claude Console</strong>은 Claude Code를 사용하는 개발자가 로컬 환경에서
+        LLM 호출 로그를 수집·분석하고, 프롬프트를 체계적으로 관리하며,
+        메모리와 Eval 파이프라인을 직접 운영할 수 있는 <strong>올인원 관찰성(Observability) 도구</strong>입니다.
+        외부 SaaS에 의존하지 않고 <strong>100% 로컬에서 동작</strong>하며,
+        <code>npm run dev</code> 단 하나의 명령으로 실행됩니다.
+      </p>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-value blue">10</div>
+        <div class="stat-label">대시보드 섹션</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value green">5</div>
+        <div class="stat-label">신규 학습 기술</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value purple">100%</div>
+        <div class="stat-label">로컬 실행</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value orange">SQLite</div>
+        <div class="stat-label">로컬 데이터베이스</div>
+      </div>
+    </div>
+
+    <div class="card-grid card-grid-2">
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:12px;">개발 배경</h3>
+        <ul class="feature-list">
+          <li>프론트엔드 개발자로서 AI Application Engineer 핵심 역량 체득</li>
+          <li>Centinel 프로젝트로 Claude 앙상블, SSE, Vision, Supabase 구현 완료</li>
+          <li>LLM API, 멀티 에이전트, 멀티모달 경험 보유</li>
+          <li>이번 프로젝트에서 RAG, Tool Use, Eval 등 핵심 역량 추가</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:12px;">프로젝트 목표</h3>
+        <ul class="feature-list">
+          <li>Claude Code의 모든 LLM 호출을 <strong>완전 추적</strong></li>
+          <li>sqlite-vec으로 <strong>RAG 파이프라인</strong> 직접 구현</li>
+          <li>LLM-as-judge 방식의 <strong>자동 Eval</strong> 시스템 구축</li>
+          <li>Prompt Harness로 <strong>프롬프트 버전관리 + A/B 테스트</strong></li>
+          <li>SSE 기반 <strong>실시간 모니터링</strong> 대시보드</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       02 · 핵심 컨셉
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">02</span>
+      <h2 class="section-title">핵심 <span class="section-title-accent">컨셉</span></h2>
+    </div>
+
+    <div class="concept-box">
+      <div class="concept-main">
+        "Claude Code를 쓰는 나 자신을 위한 관찰 도구(Observability Layer)"
+      </div>
+      <div class="concept-sub">
+        Claude Code가 실행하는 모든 API 호출, Hook 이벤트, Skill 실행, 메모리 접근을
+        투명하게 시각화합니다. 단순한 로그 뷰어를 넘어, 프롬프트를 실험하고,
+        메모리를 의미 검색하며, Eval로 품질을 자동 측정하는 완전한 개발 플랫폼입니다.
+      </div>
+      <div class="tag-list">
+        <span class="tag blue">LLM Observability</span>
+        <span class="tag green">RAG</span>
+        <span class="tag purple">Tool Use</span>
+        <span class="tag orange">Context Engineering</span>
+        <span class="tag red">Prompt Harness</span>
+        <span class="tag yellow">LLM-as-judge Eval</span>
+        <span class="tag blue">SSE Streaming</span>
+        <span class="tag green">Multi-Agent</span>
+      </div>
+    </div>
+
+    <!-- Sidebar Diagram -->
+    <div class="sidebar-diagram">
+      <div class="sidebar-nav">
+        <div class="sidebar-nav-header">
+          <div class="sidebar-nav-logo">● Claude Console</div>
+          <div class="sidebar-nav-version">localhost:3000</div>
+        </div>
+        <div class="sidebar-item active">
+          <span class="sidebar-item-icon">📊</span>
+          Overview
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">📋</span>
+          Runs
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">🤖</span>
+          Agents
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">📝</span>
+          Prompts
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">🪝</span>
+          Hooks
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">⚡</span>
+          Skills
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">🧠</span>
+          Memory
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">⚙️</span>
+          Settings
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">🧪</span>
+          Eval
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">●</span>
+          Live
+        </div>
+      </div>
+
+      <div class="sidebar-content">
+        <div class="sidebar-content-title">Overview — API 사용 현황</div>
+        <div class="mock-metric-grid" style="margin-bottom:12px;">
+          <div class="mock-metric">
+            <div class="mock-metric-val">1,284</div>
+            <div class="mock-metric-lbl">Total Calls</div>
+          </div>
+          <div class="mock-metric">
+            <div class="mock-metric-val" style="color:var(--accent-green-light);">$3.42</div>
+            <div class="mock-metric-lbl">Total Cost</div>
+          </div>
+          <div class="mock-metric">
+            <div class="mock-metric-val" style="color:var(--accent-purple);">2.4M</div>
+            <div class="mock-metric-lbl">Tokens</div>
+          </div>
+        </div>
+        <div class="mock-chart">
+          <div class="mock-chart-title">일별 API 호출 추이 (최근 7일)</div>
+          <div class="mock-bars">
+            <div class="mock-bar" style="height:35%;"></div>
+            <div class="mock-bar" style="height:55%;"></div>
+            <div class="mock-bar" style="height:45%;"></div>
+            <div class="mock-bar" style="height:80%;"></div>
+            <div class="mock-bar" style="height:60%;"></div>
+            <div class="mock-bar" style="height:90%;"></div>
+            <div class="mock-bar" style="height:70%;"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div class="mock-chart" style="flex:1;padding:12px;">
+            <div class="mock-chart-title">모델 분포</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span>claude-sonnet-4</span><span style="color:var(--accent-blue-light);">68%</span></div>
+              <div style="display:flex;justify-content:space-between;"><span>claude-haiku-3</span><span style="color:var(--accent-purple);">32%</span></div>
+            </div>
+          </div>
+          <div class="mock-chart" style="flex:1;padding:12px;">
+            <div class="mock-chart-title">평균 응답시간</div>
+            <div style="font-size:22px;font-weight:700;color:var(--accent-orange);margin-top:6px;">1.8s</div>
+            <div style="font-size:10px;color:var(--text-muted);">Last 24h avg</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       03 · 기능 명세
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">03</span>
+      <h2 class="section-title">기능 <span class="section-title-accent">명세</span></h2>
+    </div>
+
+    <!-- Overview -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap blue">📊</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Overview</div>
+          <div class="feature-subtitle">API 호출 통계 · 비용 · 토큰 요약</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code가 생성한 모든 API 호출을 집계하여 사용량, 비용, 토큰 소비를 한눈에 파악합니다.
+          일별/모델별 트렌드 차트와 실시간 지표를 제공합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>총 API 호출 수 / 비용 / 입력·출력 토큰 카드</strong> — 오늘, 7일, 전체 기준</li>
+          <li><strong>일별 호출 수 바 차트</strong> — 최근 30일 트렌드</li>
+          <li><strong>모델별 분포 파이/도넛 차트</strong> — Sonnet vs Haiku 비율</li>
+          <li><strong>평균 응답 지연, P95 latency</strong> 표시</li>
+          <li><strong>에러율 지표</strong> — 실패한 API 호출 비율</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">SQLite aggregation</span>
+          <span class="feature-tag">Prisma ORM</span>
+          <span class="feature-tag">Chart.js / Recharts</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Runs -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap green">📋</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Runs</div>
+          <div class="feature-subtitle">LLM 호출 로그 전수 기록</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude API로 보내는 모든 요청·응답을 캡처하여 저장합니다.
+          각 Run에는 프롬프트 내용, 응답, 토큰, 비용, 지연시간, 에러 정보가 포함됩니다.
+          <strong>구현 우선순위 1번</strong>으로, 다른 모든 기능의 데이터 기반이 됩니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>LLM API Wrapper</strong> — Claude API 호출을 가로채서 SQLite에 기록</li>
+          <li><strong>Run 상세 뷰</strong> — 전체 메시지 히스토리, system/user/assistant 구분 렌더링</li>
+          <li><strong>Vision 지원</strong> — 이미지가 포함된 멀티모달 호출 이미지 표시</li>
+          <li><strong>시맨틱 검색</strong> — sqlite-vec 임베딩으로 내용 기반 Run 검색 (RAG)</li>
+          <li><strong>필터링</strong> — 모델, 날짜, 비용 범위, 에러 여부</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">LLM API Wrapper</span>
+          <span class="feature-tag">SQLite + Prisma</span>
+          <span class="feature-tag">sqlite-vec</span>
+          <span class="feature-tag">Multimodal Vision</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agents -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap purple">🤖</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Agents</div>
+          <div class="feature-subtitle">멀티 에이전트 실행 흐름 시각화</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code의 서브에이전트 실행 트리를 시각화합니다.
+          어떤 에이전트가 어떤 에이전트를 호출했는지, 각 단계의 소요 시간과 토큰 사용량을 추적합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Agent Tree 뷰</strong> — 부모-자식 에이전트 관계를 계층형 트리로 렌더링</li>
+          <li><strong>타임라인 뷰</strong> — 병렬 에이전트 실행 구간을 Gantt 스타일로 표시</li>
+          <li><strong>노드 상세</strong> — 각 에이전트의 입출력, 사용 도구, 에러 상태</li>
+          <li><strong>실행 통계</strong> — 총 소요시간, 병렬도, 비용 분포</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">Multi-agent Tracing</span>
+          <span class="feature-tag">Tree Visualization</span>
+          <span class="feature-tag">Timeline / Gantt</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompts -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap orange">📝</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Prompts</div>
+          <div class="feature-subtitle">CLAUDE.md 에디터 + Prompt Harness</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          CLAUDE.md와 커스텀 프롬프트를 버전 관리하고, A/B 비교 실험을 실행합니다.
+          Prompt Harness를 통해 동일한 입력에 대한 다양한 프롬프트 버전의 출력을 나란히 비교합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>CLAUDE.md 에디터</strong> — 마크다운 에디터로 실시간 편집 + 저장 + 토큰 카운트</li>
+          <li><strong>버전 히스토리</strong> — Git-style diff로 프롬프트 변경 이력 추적</li>
+          <li><strong>Prompt Studio (A/B)</strong> — 두 프롬프트 버전을 동시에 실행해 출력 비교</li>
+          <li><strong>Context Viewer</strong> — 실제 API로 전송되는 전체 컨텍스트 + 토큰 미터</li>
+          <li><strong>템플릿 라이브러리</strong> — 재사용 가능한 프롬프트 스니펫 저장</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">Prompt Harness</span>
+          <span class="feature-tag">A/B Testing</span>
+          <span class="feature-tag">Context Engineering</span>
+          <span class="feature-tag">Version Control</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hooks -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap red">🪝</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Hooks</div>
+          <div class="feature-subtitle">Hook 이벤트 시각화 + CRUD</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code의 PreToolUse / PostToolUse / Stop Hook 이벤트를 캡처하여 시각화하고,
+          새로운 Hook 스크립트를 GUI로 생성·편집·삭제합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Hook 이벤트 로그</strong> — 발생한 Hook 이벤트 타임라인 및 페이로드 표시</li>
+          <li><strong>Hook CRUD 에디터</strong> — 새 Hook 스크립트 작성, 활성화/비활성화 토글</li>
+          <li><strong>실행 결과 추적</strong> — Hook이 반환한 값, 오류, 실행 시간</li>
+          <li><strong>Hook 타입 필터</strong> — PreToolUse / PostToolUse / Stop 구분 뷰</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">Claude Code Hooks</span>
+          <span class="feature-tag">Event Visualization</span>
+          <span class="feature-tag">Script CRUD</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap yellow">⚡</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Skills</div>
+          <div class="feature-subtitle">슬래시 커맨드 관리</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code의 슬래시 커맨드(Skill)를 목록으로 확인하고, 새 Skill을 생성하거나
+          기존 Skill을 편집합니다. 각 Skill의 사용 빈도와 최근 실행 이력도 확인합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Skill 목록</strong> — 모든 슬래시 커맨드와 설명, 최근 사용일 표시</li>
+          <li><strong>Skill 에디터</strong> — 마크다운 기반 Skill 파일 생성 및 편집</li>
+          <li><strong>사용 통계</strong> — 각 Skill의 호출 빈도, 연결된 Run 수</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">Slash Commands</span>
+          <span class="feature-tag">Skill Management</span>
+          <span class="feature-tag">Usage Analytics</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memory -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap teal">🧠</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Memory</div>
+          <div class="feature-subtitle">memory/ 파일 카드뷰 + 시맨틱 검색 (RAG)</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code의 <code>memory/</code> 디렉토리 파일들을 카드 형식으로 브라우징하고,
+          sqlite-vec 기반 임베딩 검색으로 의미론적으로 유사한 기억을 찾습니다.
+          <strong>구현 우선순위 2번</strong> — RAG 파이프라인의 핵심입니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Memory 카드 뷰</strong> — 각 memory 파일을 카드로 렌더링, 빠른 탐색</li>
+          <li><strong>시맨틱 검색</strong> — 쿼리 임베딩 → sqlite-vec ANN 검색 → 관련 메모리 반환</li>
+          <li><strong>임베딩 파이프라인</strong> — 파일 변경 감지 → 자동 임베딩 재생성 → 저장</li>
+          <li><strong>유사도 스코어</strong> — 검색 결과에 코사인 유사도 시각화</li>
+          <li><strong>메모리 편집</strong> — GUI에서 직접 memory 파일 내용 수정</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">RAG Pipeline</span>
+          <span class="feature-tag">sqlite-vec</span>
+          <span class="feature-tag">Embedding</span>
+          <span class="feature-tag">Semantic Search</span>
+          <span class="feature-tag">ANN Search</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap gray">⚙️</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Settings</div>
+          <div class="feature-subtitle">권한 · MCP 서버 · 모델 설정</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code의 <code>settings.json</code> 설정을 GUI로 관리합니다.
+          허용/차단 도구, MCP 서버 목록, 기본 모델 선택을 직관적으로 편집합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Permissions 에디터</strong> — 허용/차단 도구 목록 토글 UI</li>
+          <li><strong>MCP 서버 관리</strong> — 서버 추가·삭제·상태 확인</li>
+          <li><strong>모델 설정</strong> — 기본 모델(Sonnet/Haiku), 온도, max_tokens 설정</li>
+          <li><strong>설정 내보내기/가져오기</strong> — JSON 파일 백업 및 복원</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">settings.json</span>
+          <span class="feature-tag">MCP Servers</span>
+          <span class="feature-tag">Model Config</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Eval -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap purple">🧪</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Eval</div>
+          <div class="feature-subtitle">LLM-as-judge 자동 품질 평가</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          저장된 Run 로그를 대상으로 LLM-as-judge 방식의 자동 평가를 실행합니다.
+          Eval 에이전트가 Tool Use로 Run 데이터를 조회하고, 품질 기준에 따라 점수를 매깁니다.
+          <strong>구현 우선순위 3번</strong> — Tool Use 학습의 핵심입니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Eval Runner</strong> — Run을 선택하면 judge LLM이 자동으로 품질 평가 실행</li>
+          <li><strong>Tool Use 에이전트</strong> — Eval 에이전트가 <code>get_run</code>, <code>search_runs</code> 툴로 데이터 조회</li>
+          <li><strong>평가 기준 설정</strong> — 정확성, 간결성, 유해성 등 기준 커스터마이징</li>
+          <li><strong>점수 대시보드</strong> — Run별 Eval 점수 이력 및 트렌드</li>
+          <li><strong>Prompt A/B Eval</strong> — 두 프롬프트 버전의 Eval 점수를 나란히 비교</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">LLM-as-judge</span>
+          <span class="feature-tag">Tool Use</span>
+          <span class="feature-tag">Function Calling</span>
+          <span class="feature-tag">Auto Scoring</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live -->
+    <div class="feature-section">
+      <div class="feature-header">
+        <div class="feature-icon-wrap blue">●</div>
+        <div class="feature-title-group">
+          <div class="feature-name">Live Monitor</div>
+          <div class="feature-subtitle">실시간 LLM 호출 스트림 (SSE)</div>
+        </div>
+      </div>
+      <div class="feature-body">
+        <p class="feature-desc">
+          Claude Code가 현재 실행 중인 API 호출을 Server-Sent Events로 실시간 스트리밍합니다.
+          토큰이 생성되는 것을 실시간으로 보고, 현재 활성 에이전트를 추적합니다.
+          <strong>구현 우선순위 5번</strong> — SSE 경험을 심화합니다.
+        </p>
+        <ul class="feature-list">
+          <li><strong>실시간 토큰 스트림</strong> — 현재 생성 중인 응답을 실시간 타이핑 효과로 표시</li>
+          <li><strong>활성 에이전트 패널</strong> — 현재 실행 중인 에이전트 목록 및 상태</li>
+          <li><strong>스트림 토글</strong> — 실시간 수신 일시정지 / 재개</li>
+          <li><strong>이벤트 로그</strong> — 스트리밍 이벤트 타입별 색상 구분 표시</li>
+        </ul>
+        <div class="feature-tags">
+          <span class="feature-tag">Server-Sent Events</span>
+          <span class="feature-tag">Real-time Streaming</span>
+          <span class="feature-tag">Next.js Route Handlers</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       04 · 학습 로드맵
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">04</span>
+      <h2 class="section-title">학습 <span class="section-title-accent">로드맵</span></h2>
+    </div>
+
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:28px;line-height:1.7;">
+      이미 보유한 기술을 기반으로 신규 기술을 각 기능에 매핑합니다.
+      각 기능은 하나 이상의 학습 목표를 내포하며, 구현 과정 자체가 포트폴리오가 됩니다.
+    </p>
+
+    <table class="roadmap-table">
+      <thead>
+        <tr>
+          <th>기존 경험</th>
+          <th>학습할 신규 기술</th>
+          <th>구현 기능</th>
+          <th>구현 형태</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>LLM API 호출</td>
+          <td><span class="roadmap-badge known">기존</span> 심화</td>
+          <td>Runs 로깅, Prompt Tester, Eval 실행</td>
+          <td>API Wrapper → SQLite 저장, 메타데이터 추출</td>
+        </tr>
+        <tr>
+          <td>SSE 스트리밍</td>
+          <td><span class="roadmap-badge known">기존</span> 심화</td>
+          <td>Live Monitor 실시간 스트림</td>
+          <td>Next.js Route Handler SSE → 클라이언트 렌더링</td>
+        </tr>
+        <tr>
+          <td>멀티 에이전트</td>
+          <td><span class="roadmap-badge known">기존</span> 심화</td>
+          <td>Agent Tracer, Prompt A/B 동시 실행</td>
+          <td>에이전트 트리 추적 + 병렬 실행 타임라인</td>
+        </tr>
+        <tr>
+          <td>멀티모달 (Vision)</td>
+          <td><span class="roadmap-badge known">기존</span> 심화</td>
+          <td>Runs 뷰 이미지 표시</td>
+          <td>이미지 포함 메시지 렌더링, base64/URL 처리</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td><span class="roadmap-badge new">신규</span> RAG</td>
+          <td>Memory 시맨틱 검색, Runs 시맨틱 검색</td>
+          <td>임베딩 생성 → sqlite-vec 저장 → ANN 검색 → 결과 렌더링</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td><span class="roadmap-badge new">신규</span> Tool Use</td>
+          <td>Eval 에이전트 도구 호출</td>
+          <td>Function Schema 정의 → LLM 도구 선택 → 실행 → 결과 반환</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td><span class="roadmap-badge new">신규</span> Context Engineering</td>
+          <td>Context Viewer, CLAUDE.md 토큰 설계</td>
+          <td>전체 컨텍스트 시각화, 토큰 예산 최적화</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td><span class="roadmap-badge new">신규</span> Prompt Harness</td>
+          <td>Prompt Studio 버전관리 + A/B</td>
+          <td>버전 diff, 동시 실행, 출력 비교 UI</td>
+        </tr>
+        <tr>
+          <td>—</td>
+          <td><span class="roadmap-badge new">신규</span> Eval (LLM-as-judge)</td>
+          <td>Eval Runner 자동 채점</td>
+          <td>Judge LLM → 평가 기준 프롬프트 → 점수/이유 추출 → DB 저장</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       05 · 기술 스택
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">05</span>
+      <h2 class="section-title">기술 <span class="section-title-accent">스택</span></h2>
+    </div>
+
+    <div class="tech-category">
+      <div class="tech-category-title">Frontend / Framework</div>
+      <div class="tech-items">
+        <div class="tech-item">
+          <div class="tech-item-icon">⚡</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Next.js 16</div>
+            <div class="tech-item-desc">App Router + RSC</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🔷</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">TypeScript</div>
+            <div class="tech-item-desc">Strict mode 타입 안전성</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🎨</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Tailwind CSS v4</div>
+            <div class="tech-item-desc">최신 CSS 엔진</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🧩</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">shadcn/ui</div>
+            <div class="tech-item-desc">Radix 기반 컴포넌트</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-category">
+      <div class="tech-category-title">Database / ORM</div>
+      <div class="tech-items">
+        <div class="tech-item">
+          <div class="tech-item-icon">🗄️</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">SQLite</div>
+            <div class="tech-item-desc">로컬 파일 DB (no server)</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🔺</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Prisma</div>
+            <div class="tech-item-desc">Type-safe ORM</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🧮</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">sqlite-vec</div>
+            <div class="tech-item-desc">벡터 검색 확장</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-category">
+      <div class="tech-category-title">AI / LLM</div>
+      <div class="tech-items">
+        <div class="tech-item">
+          <div class="tech-item-icon">🤖</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Claude Sonnet</div>
+            <div class="tech-item-desc">메인 추론 모델</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🐦</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Claude Haiku</div>
+            <div class="tech-item-desc">빠른 분류/요약</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">📡</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Anthropic SDK</div>
+            <div class="tech-item-desc">공식 TypeScript SDK</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-category">
+      <div class="tech-category-title">기타 도구</div>
+      <div class="tech-items">
+        <div class="tech-item">
+          <div class="tech-item-icon">📡</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Server-Sent Events</div>
+            <div class="tech-item-desc">실시간 스트리밍</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">📊</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Recharts</div>
+            <div class="tech-item-desc">차트 시각화</div>
+          </div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">📝</div>
+          <div class="tech-item-info">
+            <div class="tech-item-name">Monaco Editor</div>
+            <div class="tech-item-desc">코드/프롬프트 편집기</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;background:var(--bg-tertiary);">
+      <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">실행 커맨드</div>
+      <div style="font-family:'SF Mono','Fira Code',monospace;font-size:14px;color:var(--accent-green-light);">
+        $ npm run dev
+        <span style="color:var(--text-muted);margin-left:16px;"># → http://localhost:3000</span>
+      </div>
+      <div style="font-family:'SF Mono','Fira Code',monospace;font-size:14px;color:var(--accent-blue-light);margin-top:8px;">
+        $ npx prisma migrate dev
+        <span style="color:var(--text-muted);margin-left:16px;"># SQLite 마이그레이션</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       06 · 구현 우선순위
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">06</span>
+      <h2 class="section-title">구현 <span class="section-title-accent">우선순위</span></h2>
+    </div>
+
+    <p style="font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.7;">
+      학습 효과가 높고 다른 기능의 기반이 되는 순서로 구현합니다.
+      각 단계는 독립적으로 완성 가능한 기능 단위입니다.
+    </p>
+
+    <div class="priority-list">
+      <div class="priority-item">
+        <div class="priority-num p1">1</div>
+        <div class="priority-content">
+          <div class="priority-title">Runs 로깅 시스템</div>
+          <div class="priority-desc">
+            LLM API Wrapper 구현 + SQLite 스키마 설계 + Runs 뷰 구축.
+            모든 후속 기능(Eval, Memory 검색, Live)의 데이터 기반이 됩니다.
+            LLM API 심화 학습 + Prisma ORM 익히기.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">LLM API Wrapper</span>
+          <span class="priority-tech">SQLite + Prisma</span>
+          <span class="priority-tech">Next.js App Router</span>
+        </div>
+      </div>
+
+      <div class="priority-item">
+        <div class="priority-num p2">2</div>
+        <div class="priority-content">
+          <div class="priority-title">Memory 시맨틱 검색 (RAG)</div>
+          <div class="priority-desc">
+            임베딩 생성 파이프라인 + sqlite-vec 설치 + ANN 검색 구현.
+            가장 핵심적인 신규 학습 목표인 RAG를 직접 구현합니다.
+            이후 Runs 시맨틱 검색에도 동일 파이프라인을 재사용합니다.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">RAG Pipeline</span>
+          <span class="priority-tech">sqlite-vec</span>
+          <span class="priority-tech">Embeddings API</span>
+        </div>
+      </div>
+
+      <div class="priority-item">
+        <div class="priority-num p3">3</div>
+        <div class="priority-content">
+          <div class="priority-title">Eval Runner (LLM-as-judge + Tool Use)</div>
+          <div class="priority-desc">
+            Eval 에이전트 Tool Schema 정의 + Function Calling 구현 + 채점 로직.
+            Tool Use 학습의 핵심이며, 기존 Runs 데이터를 활용하므로 1번이 선행되어야 합니다.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">Tool Use</span>
+          <span class="priority-tech">Function Calling</span>
+          <span class="priority-tech">LLM-as-judge</span>
+        </div>
+      </div>
+
+      <div class="priority-item">
+        <div class="priority-num p4">4</div>
+        <div class="priority-content">
+          <div class="priority-title">Prompts A/B (Prompt Harness)</div>
+          <div class="priority-desc">
+            CLAUDE.md 에디터 + 버전 관리 + A/B 동시 실행 비교.
+            멀티 에이전트 병렬 실행 경험을 Prompt 비교에 적용합니다.
+            Context Engineering 학습을 위한 토큰 설계 연습 포함.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">Prompt Harness</span>
+          <span class="priority-tech">Multi-agent</span>
+          <span class="priority-tech">Context Engineering</span>
+        </div>
+      </div>
+
+      <div class="priority-item">
+        <div class="priority-num p5">5</div>
+        <div class="priority-content">
+          <div class="priority-title">Live Monitor (SSE 실시간 스트림)</div>
+          <div class="priority-desc">
+            SSE 스트리밍 채널 구축 + 실시간 토큰 표시 + 활성 에이전트 패널.
+            기존 SSE 경험을 심화하며, 완성된 시스템에 실시간 관찰성을 추가합니다.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">Server-Sent Events</span>
+          <span class="priority-tech">Real-time</span>
+          <span class="priority-tech">Route Handlers</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════════
+       07 · 진행 방식
+  ═══════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-number">07</span>
+      <h2 class="section-title">진행 <span class="section-title-accent">방식</span></h2>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">1</div>
+      <div class="process-body">
+        <div class="process-title">기반 설계 (Day 1~2)</div>
+        <div class="process-desc">
+          Next.js 프로젝트 초기화 + Prisma 스키마 설계 + SQLite 마이그레이션.
+          <code>LLMCallRecord</code>, <code>EvalResult</code>, <code>MemoryChunk</code> 등 핵심 테이블 정의.
+          사이드바 레이아웃 + 라우팅 구조 완성.
+        </div>
+      </div>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">2</div>
+      <div class="process-body">
+        <div class="process-title">Runs 로깅 구현 (Day 2~3)</div>
+        <div class="process-desc">
+          Anthropic SDK를 래핑하는 <code>loggedAnthropicCall()</code> 유틸리티 작성.
+          모든 요청/응답 메타데이터를 SQLite에 저장. Runs 목록 + 상세 UI 구현.
+          Overview 통계 집계 쿼리 작성.
+        </div>
+      </div>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">3</div>
+      <div class="process-body">
+        <div class="process-title">RAG 파이프라인 구축 (Day 3~5)</div>
+        <div class="process-desc">
+          sqlite-vec 설치 및 임베딩 스키마 추가. <code>memory/</code> 파일 감시 → 자동 임베딩.
+          쿼리 임베딩 → ANN 검색 → 코사인 유사도 결과 렌더링. Memory 카드 뷰 UI 완성.
+        </div>
+      </div>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">4</div>
+      <div class="process-body">
+        <div class="process-title">Eval + Tool Use 구현 (Day 5~7)</div>
+        <div class="process-desc">
+          Eval 에이전트용 Function Schema 설계 (<code>get_run</code>, <code>search_runs</code>, <code>save_eval_result</code>).
+          Judge LLM 프롬프트 설계 → 점수/이유 추출 → DB 저장. Eval 결과 대시보드 UI.
+        </div>
+      </div>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">5</div>
+      <div class="process-body">
+        <div class="process-title">Prompt Harness + Live Monitor (Day 7~10)</div>
+        <div class="process-desc">
+          Monaco Editor 통합 + CLAUDE.md 버전 관리 + A/B 동시 실행 비교 UI.
+          SSE 엔드포인트 구축 → 실시간 토큰 스트리밍 → Live Monitor 뷰.
+          Hooks, Skills, Settings 관리 UI 완성.
+        </div>
+      </div>
+    </div>
+
+    <div class="process-item">
+      <div class="process-num">6</div>
+      <div class="process-body">
+        <div class="process-title">마무리 및 포트폴리오 정리 (Day 10+)</div>
+        <div class="process-desc">
+          README 작성 — 기술 결정 이유, 구현 과정에서 배운 것, 아키텍처 다이어그램 포함.
+          각 신규 기술(RAG, Tool Use, Eval, Prompt Harness)별 학습 메모 작성.
+          각 구현에서 "왜 이렇게 했는가"를 정리하며 깊은 이해를 굳힌다.
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:8px;border-color:#388bfd40;background:#388bfd08;">
+      <div style="font-size:13px;font-weight:700;color:var(--accent-blue-light);margin-bottom:10px;">핵심 원칙</div>
+      <ul class="feature-list">
+        <li>외부 SaaS 불필요 — <strong>완전 로컬 SQLite</strong>로 데이터 주권 유지</li>
+        <li>배울 때는 직접 구현 — <strong>LangChain 같은 추상화 라이브러리 배제</strong>, 임베딩부터 직접</li>
+        <li>작동하는 것 우선 — 완벽한 UI보다 <strong>기능하는 파이프라인</strong> 먼저 구축</li>
+        <li>문서화가 포트폴리오 — 코드와 함께 <strong>"왜 이 결정인가"를 기록</strong></li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-left">
+      Claude Console 기획서 v1.0<br>
+      AI Application Engineer 역량 심화 프로젝트
+    </div>
+    <div class="footer-right">
+      작성일 2026년 4월<br>
+      <code style="font-size:11px;">npm run dev → localhost:3000</code>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
