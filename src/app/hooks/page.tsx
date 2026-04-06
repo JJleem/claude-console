@@ -119,6 +119,64 @@ function HookList({
   );
 }
 
+function EventSection({
+  event,
+  hooks,
+  scope,
+  onDelete,
+}: {
+  event: EventType;
+  hooks: HooksConfig;
+  scope: "global" | "project";
+  onDelete: (scope: "global" | "project", event: EventType, idx: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const count = hooks[event]?.length ?? 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Badge className={`text-xs ${EVENT_COLORS[event]}`} variant="outline">
+          {event}
+        </Badge>
+        <span className="text-xs text-muted-foreground">{count}개</span>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Info size={11} />
+          {open ? "설명 닫기" : "설명 보기"}
+        </button>
+      </div>
+
+      <HookList
+        event={event}
+        matchers={hooks[event] ?? []}
+        onDelete={(idx) => onDelete(scope, event, idx)}
+      />
+
+      {open && (
+        <div className="rounded-md border border-border bg-accent/20 px-3 py-2 space-y-2">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {EVENT_INFO[event].desc}
+          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground/60 font-medium">예시</p>
+            {EVENT_INFO[event].examples.map((ex, i) => (
+              <code
+                key={i}
+                className="block text-xs font-mono text-foreground/70 bg-secondary rounded px-2 py-1 truncate"
+              >
+                {ex}
+              </code>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HooksPage() {
   const { selectedProject } = useProject();
   const [globalHooks, setGlobalHooks] = useState<HooksConfig>({});
@@ -249,43 +307,13 @@ export default function HooksPage() {
                   </div>
 
                   {EVENT_TYPES.map((event) => (
-                    <div key={event} className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Badge className={`text-xs ${EVENT_COLORS[event]}`} variant="outline">
-                          {event}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {(hooks[event]?.length ?? 0)}개
-                        </span>
-                      </div>
-
-                      <HookList
-                        event={event}
-                        matchers={hooks[event] ?? []}
-                        onDelete={(idx) => handleDelete(scope, event, idx)}
-                      />
-
-                      {/* 설명 */}
-                      <div className="rounded-md border border-border bg-accent/20 px-3 py-2 space-y-2">
-                        <div className="flex items-start gap-1.5">
-                          <Info size={11} className="text-muted-foreground shrink-0 mt-0.5" />
-                          <p className="text-xs text-muted-foreground leading-relaxed">
-                            {EVENT_INFO[event].desc}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground/60 font-medium">예시</p>
-                          {EVENT_INFO[event].examples.map((ex, i) => (
-                            <code
-                              key={i}
-                              className="block text-xs font-mono text-foreground/70 bg-secondary rounded px-2 py-1 truncate"
-                            >
-                              {ex}
-                            </code>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    <EventSection
+                      key={event}
+                      event={event}
+                      hooks={hooks}
+                      scope={scope}
+                      onDelete={handleDelete}
+                    />
                   ))}
                 </TabsContent>
               );
