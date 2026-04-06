@@ -259,6 +259,12 @@ export default function HooksPage() {
                         </span>
                       </div>
 
+                      <HookList
+                        event={event}
+                        matchers={hooks[event] ?? []}
+                        onDelete={(idx) => handleDelete(scope, event, idx)}
+                      />
+
                       {/* 설명 */}
                       <div className="rounded-md border border-border bg-accent/20 px-3 py-2 space-y-2">
                         <div className="flex items-start gap-1.5">
@@ -279,12 +285,6 @@ export default function HooksPage() {
                           ))}
                         </div>
                       </div>
-
-                      <HookList
-                        event={event}
-                        matchers={hooks[event] ?? []}
-                        onDelete={(idx) => handleDelete(scope, event, idx)}
-                      />
                     </div>
                   ))}
                 </TabsContent>
@@ -296,28 +296,29 @@ export default function HooksPage() {
 
       {/* Add Hook Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-sm">
               훅 추가 — {addScope === "global" ? "글로벌" : "프로젝트"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-2">
             {/* Event Type */}
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">이벤트</label>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-muted-foreground">이벤트 타입</label>
+              <div className="grid grid-cols-2 gap-2">
                 {EVENT_TYPES.map((e) => (
                   <button
                     key={e}
                     onClick={() => setNewEvent(e)}
-                    className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
+                    className={`text-left px-3 py-2.5 rounded-md border transition-colors ${
                       newEvent === e
                         ? EVENT_COLORS[e]
-                        : "border-border text-muted-foreground hover:text-foreground"
+                        : "border-border text-muted-foreground hover:text-foreground hover:border-border/80"
                     }`}
                   >
-                    {e}
+                    <p className="text-xs font-medium">{e}</p>
+                    <p className="text-xs opacity-70 mt-0.5 leading-snug">{EVENT_INFO[e].desc.slice(0, 50)}…</p>
                   </button>
                 ))}
               </div>
@@ -326,27 +327,33 @@ export default function HooksPage() {
             {/* Matcher */}
             {(newEvent === "PreToolUse" || newEvent === "PostToolUse") && (
               <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  matcher <span className="text-muted-foreground/60">(선택, 예: Bash, Edit, Write)</span>
+                <label className="text-xs font-medium text-muted-foreground">
+                  matcher <span className="font-normal opacity-60">(선택 — 특정 툴만 필터, 예: Bash, Edit, Write)</span>
                 </label>
                 <input
                   value={newMatcher}
                   onChange={(e) => setNewMatcher(e.target.value)}
                   placeholder="Bash"
-                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
                 />
               </div>
             )}
 
             {/* Command */}
             <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">command</label>
+              <label className="text-xs font-medium text-muted-foreground">
+                실행할 커맨드 <span className="font-normal opacity-60">(shell 명령어)</span>
+              </label>
               <input
                 value={newCommand}
                 onChange={(e) => setNewCommand(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
                 placeholder="curl -X POST http://localhost:3000/api/hook"
-                className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
               />
+              <p className="text-xs text-muted-foreground/60">
+                환경변수: <code className="font-mono">$CLAUDE_TOOL_NAME</code>, <code className="font-mono">$CLAUDE_TOOL_INPUT</code> 등 사용 가능
+              </p>
             </div>
 
             <div className="flex gap-2 pt-1">
