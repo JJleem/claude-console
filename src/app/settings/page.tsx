@@ -19,7 +19,7 @@ import {
 
 type ScannedProject = {
   key: string;
-  detectedPath: string;
+  detectedPath: string | null;
 };
 
 export default function SettingsPage() {
@@ -63,6 +63,7 @@ export default function SettingsPage() {
   }
 
   async function handleQuickAdd(scanned: ScannedProject) {
+    if (!scanned.detectedPath) return;
     const autoName = scanned.detectedPath.split("/").pop() ?? scanned.key;
     const res = await fetch("/api/settings/projects", {
       method: "POST",
@@ -219,10 +220,10 @@ export default function SettingsPage() {
                   <FolderOpen size={13} className="text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">
-                      {s.detectedPath.split("/").pop()}
+                      {s.detectedPath?.split("/").pop() ?? s.key}
                     </p>
                     <p className="text-xs text-muted-foreground font-mono truncate">
-                      {s.detectedPath}
+                      {s.detectedPath ?? s.key}
                     </p>
                   </div>
                   <Button
