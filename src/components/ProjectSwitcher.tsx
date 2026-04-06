@@ -32,11 +32,11 @@ export function ProjectSwitcher() {
         setSelectedProject(p);
       }}
     >
-      <SelectTrigger className="h-7 text-xs w-48 gap-1.5">
+      <SelectTrigger className="h-7 text-xs w-64 gap-1.5">
         <FolderOpen size={12} className="text-muted-foreground shrink-0" />
         <SelectValue placeholder="프로젝트 선택" />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="w-72">
         {projects.map((p) => (
           <SelectItem key={p.id} value={p.id} className="text-xs">
             <span className="font-medium">{p.name}</span>
