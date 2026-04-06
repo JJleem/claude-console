@@ -169,7 +169,7 @@ function ScopePanel({
                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                 }`}
               >
-                <span className={`text-xs font-medium ${isActive ? "" : EVENT_COLORS[event].split(" ")[0]}`}>{event}</span>
+                <span className={`text-xs font-medium ${EVENT_COLORS[event].split(" ")[0]}`}>{event}</span>
                 {count > 0 && (
                   <Badge variant="secondary" className="text-xs h-4 px-1.5">
                     {count}
