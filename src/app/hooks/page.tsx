@@ -296,7 +296,7 @@ export default function HooksPage() {
 
       {/* Add Hook Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl w-[90vw]">
           <DialogHeader>
             <DialogTitle className="text-sm">
               훅 추가 — {addScope === "global" ? "글로벌" : "프로젝트"}
