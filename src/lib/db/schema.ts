@@ -41,6 +41,14 @@ export const evaluations = sqliteTable("evaluations", {
   judgeModel: text("judge_model").notNull(),
 });
 
+export const projects = sqliteTable("projects", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
+  name: text("name").notNull(),
+  path: text("path").notNull().unique(),
+});
+
+export type Project = typeof projects.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type Evaluation = typeof evaluations.$inferSelect;

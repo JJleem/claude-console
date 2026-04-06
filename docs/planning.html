@@ -1073,12 +1073,12 @@
 
     <div class="concept-box">
       <div class="concept-main">
-        "Claude Code를 쓰는 나 자신을 위한 관찰 도구(Observability Layer)"
+        "Claude Code의 로컬 파일을 직접 읽어서 관리하는 개발 플랫폼"
       </div>
       <div class="concept-sub">
-        Claude Code가 실행하는 모든 API 호출, Hook 이벤트, Skill 실행, 메모리 접근을
-        투명하게 시각화합니다. 단순한 로그 뷰어를 넘어, 프롬프트를 실험하고,
-        메모리를 의미 검색하며, Eval로 품질을 자동 측정하는 완전한 개발 플랫폼입니다.
+        <code>~/.claude/</code> 설정 파일과 프로젝트별 CLAUDE.md, Hooks, Memory를 직접 읽어 시각화합니다.
+        사용자가 Settings에서 프로젝트 경로를 등록하면 앱이 자동으로 로컬 파일을 스캔하여
+        멀티 프로젝트 전환, 메모리 의미 검색, Eval 품질 측정을 제공하는 완전한 로컬 개발 플랫폼입니다.
       </div>
       <div class="tag-list">
         <span class="tag blue">LLM Observability</span>
@@ -1220,7 +1220,7 @@
         </ul>
         <div class="feature-tags">
           <span class="feature-tag">SQLite aggregation</span>
-          <span class="feature-tag">Prisma ORM</span>
+          <span class="feature-tag">Drizzle ORM</span>
           <span class="feature-tag">Chart.js / Recharts</span>
         </div>
       </div>
@@ -1237,20 +1237,20 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          Claude API로 보내는 모든 요청·응답을 캡처하여 저장합니다.
+          Claude Code Hook이 API 호출 시 우리 서버로 POST를 보내면 SQLite에 저장합니다.
           각 Run에는 프롬프트 내용, 응답, 토큰, 비용, 지연시간, 에러 정보가 포함됩니다.
-          <strong>구현 우선순위 1번</strong>으로, 다른 모든 기능의 데이터 기반이 됩니다.
+          <strong>구현 우선순위 2번</strong> — 로컬 파일 스캔 기반 위에 구축됩니다.
         </p>
         <ul class="feature-list">
-          <li><strong>LLM API Wrapper</strong> — Claude API 호출을 가로채서 SQLite에 기록</li>
+          <li><strong>Claude Code Hook → POST</strong> — Claude Code가 API 호출 시 Hook이 우리 서버 엔드포인트로 데이터를 전송</li>
           <li><strong>Run 상세 뷰</strong> — 전체 메시지 히스토리, system/user/assistant 구분 렌더링</li>
           <li><strong>Vision 지원</strong> — 이미지가 포함된 멀티모달 호출 이미지 표시</li>
           <li><strong>시맨틱 검색</strong> — sqlite-vec 임베딩으로 내용 기반 Run 검색 (RAG)</li>
           <li><strong>필터링</strong> — 모델, 날짜, 비용 범위, 에러 여부</li>
         </ul>
         <div class="feature-tags">
-          <span class="feature-tag">LLM API Wrapper</span>
-          <span class="feature-tag">SQLite + Prisma</span>
+          <span class="feature-tag">Claude Code Hook → POST</span>
+          <span class="feature-tag">SQLite + Drizzle ORM</span>
           <span class="feature-tag">sqlite-vec</span>
           <span class="feature-tag">Multimodal Vision</span>
         </div>
@@ -1296,11 +1296,11 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          CLAUDE.md와 커스텀 프롬프트를 버전 관리하고, A/B 비교 실험을 실행합니다.
+          등록된 프로젝트의 실제 <code>[project]/CLAUDE.md</code> 파일을 읽어 편집하고 저장합니다.
           Prompt Harness를 통해 동일한 입력에 대한 다양한 프롬프트 버전의 출력을 나란히 비교합니다.
         </p>
         <ul class="feature-list">
-          <li><strong>CLAUDE.md 에디터</strong> — 마크다운 에디터로 실시간 편집 + 저장 + 토큰 카운트</li>
+          <li><strong>CLAUDE.md 에디터</strong> — 실제 프로젝트의 <code>CLAUDE.md</code> 파일을 직접 읽어 편집 후 저장, 토큰 카운트 표시</li>
           <li><strong>버전 히스토리</strong> — Git-style diff로 프롬프트 변경 이력 추적</li>
           <li><strong>Prompt Studio (A/B)</strong> — 두 프롬프트 버전을 동시에 실행해 출력 비교</li>
           <li><strong>Context Viewer</strong> — 실제 API로 전송되는 전체 컨텍스트 + 토큰 미터</li>
@@ -1326,17 +1326,20 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          Claude Code의 PreToolUse / PostToolUse / Stop Hook 이벤트를 캡처하여 시각화하고,
-          새로운 Hook 스크립트를 GUI로 생성·편집·삭제합니다.
+          <code>~/.claude/settings.json</code> (글로벌)과 <code>[project]/.claude/settings.json</code> (프로젝트)
+          양쪽에서 Hook 설정을 읽어 시각화하고 GUI로 편집합니다.
+          Claude Code Hook → POST to our server 흐름으로 Runs 로깅도 수행합니다.
         </p>
         <ul class="feature-list">
+          <li><strong>글로벌 + 프로젝트 Hook 읽기</strong> — <code>~/.claude/settings.json</code> 및 <code>[project]/.claude/settings.json</code> 양쪽 파싱</li>
           <li><strong>Hook 이벤트 로그</strong> — 발생한 Hook 이벤트 타임라인 및 페이로드 표시</li>
           <li><strong>Hook CRUD 에디터</strong> — 새 Hook 스크립트 작성, 활성화/비활성화 토글</li>
-          <li><strong>실행 결과 추적</strong> — Hook이 반환한 값, 오류, 실행 시간</li>
+          <li><strong>Runs 로깅 연동</strong> — Claude Code Hook이 API 호출 시 우리 서버로 POST → SQLite 저장</li>
           <li><strong>Hook 타입 필터</strong> — PreToolUse / PostToolUse / Stop 구분 뷰</li>
         </ul>
         <div class="feature-tags">
           <span class="feature-tag">Claude Code Hooks</span>
+          <span class="feature-tag">Global + Project Settings</span>
           <span class="feature-tag">Event Visualization</span>
           <span class="feature-tag">Script CRUD</span>
         </div>
@@ -1354,18 +1357,18 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          Claude Code의 슬래시 커맨드(Skill)를 목록으로 확인하고, 새 Skill을 생성하거나
-          기존 Skill을 편집합니다. 각 Skill의 사용 빈도와 최근 실행 이력도 확인합니다.
+          <code>~/.claude/skills/</code> 디렉토리의 글로벌 슬래시 커맨드를 직접 읽어 목록으로 확인하고,
+          새 Skill을 생성하거나 기존 Skill 파일을 편집·저장합니다.
         </p>
         <ul class="feature-list">
-          <li><strong>Skill 목록</strong> — 모든 슬래시 커맨드와 설명, 최근 사용일 표시</li>
-          <li><strong>Skill 에디터</strong> — 마크다운 기반 Skill 파일 생성 및 편집</li>
+          <li><strong>Skill 목록</strong> — <code>~/.claude/skills/</code>에서 직접 읽어 모든 슬래시 커맨드와 설명 표시</li>
+          <li><strong>Skill 에디터</strong> — 마크다운 기반 Skill 파일 생성·편집 후 로컬 파일로 저장</li>
           <li><strong>사용 통계</strong> — 각 Skill의 호출 빈도, 연결된 Run 수</li>
         </ul>
         <div class="feature-tags">
+          <span class="feature-tag">~/.claude/skills/</span>
           <span class="feature-tag">Slash Commands</span>
           <span class="feature-tag">Skill Management</span>
-          <span class="feature-tag">Usage Analytics</span>
         </div>
       </div>
     </div>
@@ -1381,9 +1384,10 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          Claude Code의 <code>memory/</code> 디렉토리 파일들을 카드 형식으로 브라우징하고,
+          <code>~/.claude/projects/[key]/memory/</code> 디렉토리 파일들을 카드 형식으로 브라우징합니다.
+          경로 키는 프로젝트 경로의 <code>/</code>를 <code>-</code>로 치환한 값입니다 (예: <code>-Users-molt-Desktop-project</code>).
           sqlite-vec 기반 임베딩 검색으로 의미론적으로 유사한 기억을 찾습니다.
-          <strong>구현 우선순위 2번</strong> — RAG 파이프라인의 핵심입니다.
+          <strong>구현 우선순위 3번</strong> — RAG 파이프라인의 핵심입니다.
         </p>
         <ul class="feature-list">
           <li><strong>Memory 카드 뷰</strong> — 각 memory 파일을 카드로 렌더링, 빠른 탐색</li>
@@ -1413,19 +1417,23 @@
       </div>
       <div class="feature-body">
         <p class="feature-desc">
-          Claude Code의 <code>settings.json</code> 설정을 GUI로 관리합니다.
-          허용/차단 도구, MCP 서버 목록, 기본 모델 선택을 직관적으로 편집합니다.
+          사용자가 프로젝트 경로를 등록하면 앱이 <code>~/.claude/projects/</code>를 자동 스캔합니다.
+          <code>~/.claude/settings.json</code>의 글로벌 설정(MCP, 모델, 권한)을 GUI로 관리하고,
+          등록된 여러 프로젝트 간에 전환하며 각 프로젝트별 설정을 확인합니다.
         </p>
         <ul class="feature-list">
+          <li><strong>프로젝트 등록</strong> — 프로젝트 경로 추가 시 앱이 <code>~/.claude/projects/</code> 자동 스캔, 경로 키(<code>/</code> → <code>-</code>) 변환</li>
+          <li><strong>멀티 프로젝트 전환</strong> — 등록된 프로젝트 간 전환, 각각의 CLAUDE.md·Hooks·Memory·Settings 표시</li>
           <li><strong>Permissions 에디터</strong> — 허용/차단 도구 목록 토글 UI</li>
           <li><strong>MCP 서버 관리</strong> — 서버 추가·삭제·상태 확인</li>
           <li><strong>모델 설정</strong> — 기본 모델(Sonnet/Haiku), 온도, max_tokens 설정</li>
-          <li><strong>설정 내보내기/가져오기</strong> — JSON 파일 백업 및 복원</li>
         </ul>
         <div class="feature-tags">
+          <span class="feature-tag">프로젝트 등록</span>
+          <span class="feature-tag">로컬 파일 스캔</span>
           <span class="feature-tag">settings.json</span>
           <span class="feature-tag">MCP Servers</span>
-          <span class="feature-tag">Model Config</span>
+          <span class="feature-tag">Multi-project</span>
         </div>
       </div>
     </div>
@@ -1631,15 +1639,15 @@
         <div class="tech-item">
           <div class="tech-item-icon">🔺</div>
           <div class="tech-item-info">
-            <div class="tech-item-name">Prisma</div>
-            <div class="tech-item-desc">Type-safe ORM</div>
+            <div class="tech-item-name">Drizzle ORM</div>
+            <div class="tech-item-desc">경량 Type-safe ORM (SQLite 최적화)</div>
           </div>
         </div>
         <div class="tech-item">
           <div class="tech-item-icon">🧮</div>
           <div class="tech-item-info">
             <div class="tech-item-name">sqlite-vec</div>
-            <div class="tech-item-desc">벡터 검색 확장</div>
+            <div class="tech-item-desc">RAG 벡터 검색 확장</div>
           </div>
         </div>
       </div>
@@ -1706,7 +1714,7 @@
         <span style="color:var(--text-muted);margin-left:16px;"># → http://localhost:3000</span>
       </div>
       <div style="font-family:'SF Mono','Fira Code',monospace;font-size:14px;color:var(--accent-blue-light);margin-top:8px;">
-        $ npx prisma migrate dev
+        $ npx drizzle-kit push
         <span style="color:var(--text-muted);margin-left:16px;"># SQLite 마이그레이션</span>
       </div>
     </div>
@@ -1731,16 +1739,16 @@
       <div class="priority-item">
         <div class="priority-num p1">1</div>
         <div class="priority-content">
-          <div class="priority-title">Runs 로깅 시스템</div>
+          <div class="priority-title">Settings — 프로젝트 등록 + 로컬 파일 스캔</div>
           <div class="priority-desc">
-            LLM API Wrapper 구현 + SQLite 스키마 설계 + Runs 뷰 구축.
-            모든 후속 기능(Eval, Memory 검색, Live)의 데이터 기반이 됩니다.
-            LLM API 심화 학습 + Prisma ORM 익히기.
+            프로젝트 경로 등록 UI + <code>~/.claude/projects/</code> 자동 스캔 + 경로 키 변환 로직.
+            모든 후속 기능(Memory, Prompts, Hooks)의 로컬 파일 접근 기반이 됩니다.
+            SQLite 스키마 설계 + Drizzle ORM 익히기.
           </div>
         </div>
         <div class="priority-badge-wrap">
-          <span class="priority-tech">LLM API Wrapper</span>
-          <span class="priority-tech">SQLite + Prisma</span>
+          <span class="priority-tech">로컬 파일 스캔</span>
+          <span class="priority-tech">SQLite + Drizzle ORM</span>
           <span class="priority-tech">Next.js App Router</span>
         </div>
       </div>
@@ -1748,10 +1756,27 @@
       <div class="priority-item">
         <div class="priority-num p2">2</div>
         <div class="priority-content">
+          <div class="priority-title">Runs 로깅 (Claude Code Hook 연동)</div>
+          <div class="priority-desc">
+            Claude Code Hook → POST 엔드포인트 구현 + SQLite 스키마 + Runs 목록 UI.
+            프로젝트 등록 기반 위에서 실제 API 호출 로그를 수집합니다.
+            이후 Eval, Memory 검색, Live의 데이터 기반이 됩니다.
+          </div>
+        </div>
+        <div class="priority-badge-wrap">
+          <span class="priority-tech">Claude Code Hook</span>
+          <span class="priority-tech">SQLite + Drizzle ORM</span>
+          <span class="priority-tech">Next.js Route Handlers</span>
+        </div>
+      </div>
+
+      <div class="priority-item">
+        <div class="priority-num p3">3</div>
+        <div class="priority-content">
           <div class="priority-title">Memory 시맨틱 검색 (RAG)</div>
           <div class="priority-desc">
             임베딩 생성 파이프라인 + sqlite-vec 설치 + ANN 검색 구현.
-            가장 핵심적인 신규 학습 목표인 RAG를 직접 구현합니다.
+            <code>~/.claude/projects/[key]/memory/</code> 파일을 읽어 RAG를 직접 구현합니다.
             이후 Runs 시맨틱 검색에도 동일 파이프라인을 재사용합니다.
           </div>
         </div>
@@ -1763,12 +1788,12 @@
       </div>
 
       <div class="priority-item">
-        <div class="priority-num p3">3</div>
+        <div class="priority-num p4">4</div>
         <div class="priority-content">
           <div class="priority-title">Eval Runner (LLM-as-judge + Tool Use)</div>
           <div class="priority-desc">
             Eval 에이전트 Tool Schema 정의 + Function Calling 구현 + 채점 로직.
-            Tool Use 학습의 핵심이며, 기존 Runs 데이터를 활용하므로 1번이 선행되어야 합니다.
+            Tool Use 학습의 핵심이며, 기존 Runs 데이터를 활용하므로 2번이 선행되어야 합니다.
           </div>
         </div>
         <div class="priority-badge-wrap">
@@ -1779,24 +1804,24 @@
       </div>
 
       <div class="priority-item">
-        <div class="priority-num p4">4</div>
+        <div class="priority-num p5">5</div>
         <div class="priority-content">
           <div class="priority-title">Prompts A/B (Prompt Harness)</div>
           <div class="priority-desc">
-            CLAUDE.md 에디터 + 버전 관리 + A/B 동시 실행 비교.
+            실제 <code>[project]/CLAUDE.md</code> 읽기·편집·저장 + A/B 동시 실행 비교.
             멀티 에이전트 병렬 실행 경험을 Prompt 비교에 적용합니다.
             Context Engineering 학습을 위한 토큰 설계 연습 포함.
           </div>
         </div>
         <div class="priority-badge-wrap">
           <span class="priority-tech">Prompt Harness</span>
-          <span class="priority-tech">Multi-agent</span>
+          <span class="priority-tech">로컬 파일 읽기/쓰기</span>
           <span class="priority-tech">Context Engineering</span>
         </div>
       </div>
 
       <div class="priority-item">
-        <div class="priority-num p5">5</div>
+        <div class="priority-num p5">6</div>
         <div class="priority-content">
           <div class="priority-title">Live Monitor (SSE 실시간 스트림)</div>
           <div class="priority-desc">
@@ -1828,8 +1853,8 @@
       <div class="process-body">
         <div class="process-title">기반 설계 (Day 1~2)</div>
         <div class="process-desc">
-          Next.js 프로젝트 초기화 + Prisma 스키마 설계 + SQLite 마이그레이션.
-          <code>LLMCallRecord</code>, <code>EvalResult</code>, <code>MemoryChunk</code> 등 핵심 테이블 정의.
+          Next.js 프로젝트 초기화 + Drizzle ORM 스키마 설계 + SQLite 마이그레이션.
+          <code>Project</code>, <code>LLMCallRecord</code>, <code>EvalResult</code>, <code>MemoryChunk</code> 등 핵심 테이블 정의.
           사이드바 레이아웃 + 라우팅 구조 완성.
         </div>
       </div>
@@ -1838,11 +1863,11 @@
     <div class="process-item">
       <div class="process-num">2</div>
       <div class="process-body">
-        <div class="process-title">Runs 로깅 구현 (Day 2~3)</div>
+        <div class="process-title">로컬 파일 읽기 + Runs Hook 연동 (Day 2~3)</div>
         <div class="process-desc">
-          Anthropic SDK를 래핑하는 <code>loggedAnthropicCall()</code> 유틸리티 작성.
-          모든 요청/응답 메타데이터를 SQLite에 저장. Runs 목록 + 상세 UI 구현.
-          Overview 통계 집계 쿼리 작성.
+          <code>~/.claude/settings.json</code>, <code>~/.claude/projects/[key]/memory/</code>, <code>[project]/CLAUDE.md</code> 파일 읽기 구현.
+          Claude Code Hook → POST 엔드포인트 구현으로 Runs 로깅 연동.
+          Settings UI에서 프로젝트 등록 → 파일 스캔 → 멀티 프로젝트 전환 흐름 완성.
         </div>
       </div>
     </div>

@@ -14,7 +14,9 @@ import {
   Settings,
   FlaskConical,
   Radio,
+  FolderOpen,
 } from "lucide-react";
+import { useProject } from "@/lib/project-context";
 
 const navItems = [
   { href: "/",        icon: LayoutDashboard, label: "Overview" },
@@ -31,6 +33,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { selectedProject } = useProject();
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-border bg-sidebar h-screen sticky top-0">
@@ -77,7 +80,22 @@ export function Sidebar() {
       </nav>
 
       <div className="px-5 py-4 border-t border-border">
-        <p className="text-xs text-muted-foreground">localhost:3000</p>
+        {selectedProject ? (
+          <div className="flex items-center gap-2">
+            <FolderOpen size={12} className="text-primary shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground truncate">{selectedProject.name}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {selectedProject.path.split("/").slice(-2).join("/")}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <Link href="/settings" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary transition-colors">
+            <FolderOpen size={12} />
+            프로젝트 선택
+          </Link>
+        )}
       </div>
     </aside>
   );
