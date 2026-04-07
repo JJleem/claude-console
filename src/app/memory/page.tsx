@@ -9,25 +9,38 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Brain, Search, Trash2, Globe, FolderOpen, User, MessageSquare, Folder, Link } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Brain, Search, Trash2, Globe, FolderOpen, User, MessageSquare, Folder, Link, Plus, Pencil, Save } from "lucide-react";
 import type { MemoryFile } from "@/app/api/memory/route";
 
-const TYPE_CONFIG: Record<
-  string,
-  { label: string; color: string; icon: React.ElementType }
-> = {
-  user:      { label: "User",      color: "text-blue-400 border-blue-500/30 bg-blue-500/10",     icon: User },
-  feedback:  { label: "Feedback",  color: "text-green-400 border-green-500/30 bg-green-500/10",  icon: MessageSquare },
+const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+  user:      { label: "User",      color: "text-blue-400 border-blue-500/30 bg-blue-500/10",       icon: User },
+  feedback:  { label: "Feedback",  color: "text-green-400 border-green-500/30 bg-green-500/10",    icon: MessageSquare },
   project:   { label: "Project",   color: "text-orange-400 border-orange-500/30 bg-orange-500/10", icon: Folder },
   reference: { label: "Reference", color: "text-purple-400 border-purple-500/30 bg-purple-500/10", icon: Link },
-  unknown:   { label: "Unknown",   color: "text-muted-foreground border-border",                   icon: Brain },
+  unknown:   { label: "Unknown",   color: "text-muted-foreground border-border",                    icon: Brain },
+};
+
+const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
+
+function buildRaw(name: string, description: string, type: string, body: string) {
+  return `---\nname: ${name}\ndescription: ${description}\ntype: ${type}\n---\n\n${body}`;
+}
+
+const DEFAULT_BODY: Record<string, string> = {
+  user:      "사용자의 역할, 목표, 선호도, 지식 수준 등을 기록합니다.",
+  feedback:  "작업 방식에 대한 피드백을 기록합니다.\n\n**Why:** \n**How to apply:** ",
+  project:   "프로젝트 관련 결정, 일정, 컨텍스트를 기록합니다.\n\n**Why:** \n**How to apply:** ",
+  reference: "외부 시스템, 문서, 리소스의 위치를 기록합니다.",
 };
 
 function MemoryCard({
   memory,
+  onEdit,
   onDelete,
 }: {
   memory: MemoryFile;
+  onEdit: () => void;
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -35,7 +48,7 @@ function MemoryCard({
   const Icon = cfg.icon;
 
   return (
-    <Card className="border-border hover:border-border/80 transition-colors">
+    <Card className="border-border hover:border-border/80 transition-colors group">
       <CardContent className="py-3 px-4">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0 space-y-1.5">
@@ -68,14 +81,14 @@ function MemoryCard({
               </div>
             )}
           </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 size={12} />
-          </Button>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-foreground" onClick={onEdit}>
+              <Pencil size={12} />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+              <Trash2 size={12} />
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -85,13 +98,13 @@ function MemoryCard({
 function MemoryList({
   memories,
   query,
+  onEdit,
   onDelete,
-  projectPath,
 }: {
   memories: MemoryFile[];
   query: string;
+  onEdit: (m: MemoryFile) => void;
   onDelete: (m: MemoryFile) => void;
-  projectPath?: string;
 }) {
   const filtered = query
     ? memories.filter(
@@ -110,10 +123,7 @@ function MemoryList({
     );
   }
 
-  // Group by type
-  const groups = Object.keys(TYPE_CONFIG).filter((t) =>
-    filtered.some((m) => m.type === t)
-  );
+  const groups = Object.keys(TYPE_CONFIG).filter((t) => filtered.some((m) => m.type === t));
 
   return (
     <div className="space-y-6">
@@ -124,13 +134,11 @@ function MemoryList({
         return (
           <div key={type} className="space-y-2">
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className={`text-xs ${cfg.color}`}>
-                {cfg.label}
-              </Badge>
+              <Badge variant="outline" className={`text-xs ${cfg.color}`}>{cfg.label}</Badge>
               <span className="text-xs text-muted-foreground">{items.length}개</span>
             </div>
             {items.map((m, i) => (
-              <MemoryCard key={i} memory={m} onDelete={() => onDelete(m)} />
+              <MemoryCard key={i} memory={m} onEdit={() => onEdit(m)} onDelete={() => onDelete(m)} />
             ))}
           </div>
         );
@@ -145,52 +153,86 @@ export default function MemoryPage() {
   const [projectMemory, setProjectMemory] = useState<MemoryFile[]>([]);
   const [query, setQuery] = useState("");
 
+  // dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editScope, setEditScope] = useState<"global" | "project">("project");
+  const [editFilename, setEditFilename] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editType, setEditType] = useState<string>("project");
+  const [editBody, setEditBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const isNew = !editFilename ||
+    (!globalMemory.find(m => m.filename === editFilename) &&
+     !projectMemory.find(m => m.filename === editFilename));
+
   const fetchMemory = useCallback(async () => {
-    const params = selectedProject
-      ? `?projectPath=${encodeURIComponent(selectedProject.path)}`
-      : "";
+    const params = selectedProject ? `?projectPath=${encodeURIComponent(selectedProject.path)}` : "";
     const res = await fetch(`/api/memory${params}`);
     const data = await res.json();
     setGlobalMemory(data.global ?? []);
     setProjectMemory(data.project ?? []);
   }, [selectedProject]);
 
-  useEffect(() => {
+  useEffect(() => { fetchMemory(); }, [fetchMemory]);
+
+  function openNew(scope: "global" | "project") {
+    setEditScope(scope);
+    setEditFilename("");
+    setEditName("");
+    setEditDescription("");
+    setEditType("project");
+    setEditBody(DEFAULT_BODY.project);
+    setDialogOpen(true);
+  }
+
+  function openEdit(memory: MemoryFile) {
+    setEditScope(memory.scope);
+    setEditFilename(memory.filename);
+    setEditName(memory.name);
+    setEditDescription(memory.description);
+    setEditType(memory.type === "unknown" ? "project" : memory.type);
+    setEditBody(memory.body);
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
+    if (!editName.trim()) return;
+    setSaving(true);
+    const filename = isNew
+      ? `${editName.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_-]/g, "")}.md`
+      : editFilename;
+    const raw = buildRaw(editName.trim(), editDescription.trim(), editType, editBody.trim());
+
+    await fetch("/api/memory", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectPath: selectedProject?.path, filename, scope: editScope, raw }),
+    });
+    setSaving(false);
+    setDialogOpen(false);
     fetchMemory();
-  }, [fetchMemory]);
+  }
 
   async function handleDelete(memory: MemoryFile) {
     await fetch("/api/memory", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        projectPath: selectedProject?.path,
-        filename: memory.filename,
-        scope: memory.scope,
-      }),
+      body: JSON.stringify({ projectPath: selectedProject?.path, filename: memory.filename, scope: memory.scope }),
     });
     fetchMemory();
   }
 
-  const totalGlobal = globalMemory.length;
-  const totalProject = projectMemory.length;
-
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {/* Header */}
       <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
         <Brain size={14} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium text-foreground shrink-0">Memory</span>
         <ProjectSwitcher />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="검색..."
-              className="h-7 text-xs pl-7 w-48"
-            />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="검색..." className="h-7 text-xs pl-7 w-48" />
           </div>
         </div>
       </div>
@@ -200,66 +242,117 @@ export default function MemoryPage() {
           <div className="px-6 pt-4 shrink-0">
             <TabsList>
               <TabsTrigger value="project" className="gap-1.5 text-xs">
-                <FolderOpen size={12} />
-                프로젝트
-                {totalProject > 0 && (
-                  <Badge variant="secondary" className="text-xs h-4 px-1">
-                    {totalProject}
-                  </Badge>
-                )}
+                <FolderOpen size={12} />프로젝트
+                {projectMemory.length > 0 && <Badge variant="secondary" className="text-xs h-4 px-1">{projectMemory.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="global" className="gap-1.5 text-xs">
-                <Globe size={12} />
-                글로벌
-                {totalGlobal > 0 && (
-                  <Badge variant="secondary" className="text-xs h-4 px-1">
-                    {totalGlobal}
-                  </Badge>
-                )}
+                <Globe size={12} />글로벌
+                {globalMemory.length > 0 && <Badge variant="secondary" className="text-xs h-4 px-1">{globalMemory.length}</Badge>}
               </TabsTrigger>
             </TabsList>
           </div>
 
-            <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
-              <ScrollArea className="h-full">
-                <div className="p-6 space-y-4">
-                  {!selectedProject ? (
-                    <p className="text-xs text-muted-foreground py-6 text-center">
-                      프로젝트를 선택해주세요
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        ~/.claude/projects/{selectedProject.path.replace(/[/_]/g, "-")}/memory/
-                      </p>
-                      <MemoryList
-                        memories={projectMemory}
-                        query={query}
-                        onDelete={handleDelete}
-                        projectPath={selectedProject.path}
-                      />
-                    </>
-                  )}
-                </div>
-              </ScrollArea>
-            </TabsContent>
+          {(["project", "global"] as const).map((scope) => {
+            const memories = scope === "project" ? projectMemory : globalMemory;
+            const dirLabel = scope === "global"
+              ? "~/.claude/memory/"
+              : selectedProject ? `~/.claude/projects/${selectedProject.path.replace(/[/_]/g, "-")}/memory/` : ".claude/memory/";
 
-            <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
-              <ScrollArea className="h-full">
-                <div className="p-6 space-y-4">
-                  <p className="text-xs text-muted-foreground font-mono">
-                    ~/.claude/memory/
-                  </p>
-                  <MemoryList
-                    memories={globalMemory}
-                    query={query}
-                    onDelete={handleDelete}
-                  />
+            return (
+              <TabsContent key={scope} value={scope} className="flex-1 overflow-hidden mt-0">
+                <div className="flex items-center justify-between px-6 py-2.5 border-b border-border">
+                  <p className="text-xs text-muted-foreground font-mono">{dirLabel}</p>
+                  <Button size="sm" variant="outline" onClick={() => openNew(scope)} disabled={scope === "project" && !selectedProject}>
+                    <Plus size={13} className="mr-1" />추가
+                  </Button>
                 </div>
-              </ScrollArea>
-            </TabsContent>
-          </Tabs>
-        </div>
+                <ScrollArea className="h-[calc(100%-44px)]">
+                  <div className="p-6 space-y-4">
+                    {scope === "project" && !selectedProject ? (
+                      <p className="text-xs text-muted-foreground py-6 text-center">프로젝트를 선택해주세요</p>
+                    ) : (
+                      <MemoryList memories={memories} query={query} onEdit={openEdit} onDelete={handleDelete} />
+                    )}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {isNew ? "메모리 추가" : `메모리 편집 — ${editFilename}`}
+              <span className="ml-2 text-muted-foreground font-normal">({editScope === "global" ? "글로벌" : "프로젝트"})</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            {/* type selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">타입</label>
+              <div className="flex gap-2 flex-wrap">
+                {MEMORY_TYPES.map((t) => {
+                  const cfg = TYPE_CONFIG[t];
+                  const Icon = cfg.icon;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => { setEditType(t); setEditBody(DEFAULT_BODY[t]); }}
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                        editType === t ? cfg.color : "border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={11} />{cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">이름</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="memory name"
+                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">한 줄 설명</label>
+                <input
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="description"
+                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">내용</label>
+              <textarea
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                rows={10}
+                spellCheck={false}
+                className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono resize-none leading-relaxed"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={saving || !editName.trim()} className="flex-1">
+                <Save size={13} className="mr-1" />{saving ? "저장 중..." : "저장"}
+              </Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

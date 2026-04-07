@@ -89,6 +89,25 @@ export async function GET(req: NextRequest) {
   });
 }
 
+export async function PUT(req: NextRequest) {
+  const { projectPath, filename, scope, raw } = await req.json();
+
+  const claudeHome = path.join(os.homedir(), ".claude");
+  let dir: string;
+
+  if (scope === "global") {
+    dir = path.join(claudeHome, "memory");
+  } else {
+    const key = projectPath.replace(/[/_]/g, "-");
+    dir = path.join(claudeHome, "projects", key, "memory");
+  }
+
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, filename), raw, "utf-8");
+
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(req: NextRequest) {
   const { projectPath, filename, scope } = await req.json();
 
