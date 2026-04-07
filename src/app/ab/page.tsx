@@ -228,7 +228,7 @@ function HistoryCard({ run, harnessList, onLoad }: { run: HarnessRun; harnessLis
       >
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">
-            {new Date(run.createdAt).toLocaleString("ko-KR")}
+            {new Date(run.createdAt + "Z").toLocaleString("ko-KR")}
           </span>
           <span className="text-[10px] text-muted-foreground font-mono">{run.model}</span>
           <div className="flex gap-2 ml-auto items-center">

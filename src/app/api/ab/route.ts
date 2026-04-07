@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
-import { runs } from "@/lib/db/schema";
+import { runs, hookEvents } from "@/lib/db/schema";
 import { calcCost } from "@/lib/claude";
 import { pushEvent } from "@/lib/live-emitter";
 import { randomUUID } from "crypto";
@@ -56,17 +56,21 @@ export async function POST(req: NextRequest) {
       });
 
       // live monitor push (non-critical — ignore errors)
+      const eventId = randomUUID();
+      const eventInput = `${system?.trim() ? `[System] ${system.trim().slice(0, 100)}\n` : ""}${userMessage.slice(0, 200)}`;
+      const eventOutput = `${response.slice(0, 300)} | in:${inputTokens} out:${outputTokens} ${durationMs}ms $${costUsd.toFixed(4)}`;
       try {
-        pushEvent({
-          id: randomUUID(),
+        // persist to DB so Live Monitor shows it after reload
+        await db.insert(hookEvents).values({
+          id: eventId,
           event: "ABTest",
           tool: `Slot ${slot} · ${resolvedModel}`,
-          input: `${system?.trim() ? `[System] ${system.trim().slice(0, 100)}\n` : ""}${userMessage.slice(0, 200)}`,
-          output: `${response.slice(0, 300)} | in:${inputTokens} out:${outputTokens} ${durationMs}ms $${costUsd.toFixed(4)}`,
-          timestamp: Date.now(),
+          input: eventInput,
+          output: eventOutput,
         });
+        pushEvent({ id: eventId, event: "ABTest", tool: `Slot ${slot} · ${resolvedModel}`, input: eventInput, output: eventOutput, timestamp: Date.now() });
       } catch {
-        // SSE stream may be closed; don't fail the A/B call
+        // non-critical
       }
 
       return { response, inputTokens, outputTokens, durationMs, costUsd };

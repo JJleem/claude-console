@@ -273,7 +273,7 @@ export default function PromptsPage() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(v.createdAt).toLocaleDateString("ko-KR", {
+                    {new Date(v.createdAt + "Z").toLocaleDateString("ko-KR", {
                       month: "short",
                       day: "numeric",
                       hour: "2-digit",

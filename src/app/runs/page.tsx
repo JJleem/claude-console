@@ -50,7 +50,8 @@ export default function RunsPage() {
           </p>
         </div>
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 min-h-0">
+        <ScrollArea className="h-full">
           {runs.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground text-sm">
               아직 기록이 없습니다
@@ -85,7 +86,7 @@ export default function RunsPage() {
                       {run.durationMs}ms
                     </span>
                     <span className="text-xs text-muted-foreground ml-auto">
-                      {new Date(run.createdAt).toLocaleTimeString("ko-KR")}
+                      {new Date(run.createdAt + "Z").toLocaleTimeString("ko-KR")}
                     </span>
                   </div>
                 </button>
@@ -93,6 +94,7 @@ export default function RunsPage() {
             </div>
           )}
         </ScrollArea>
+        </div>
 
         {/* Test Prompt */}
         <div className="border-t border-border p-4 space-y-2">

@@ -141,7 +141,7 @@ export default async function OverviewPage() {
             {recentRuns.map((run) => (
               <div key={run.id} className="px-5 py-3 flex items-center gap-3 text-sm">
                 <span className="text-muted-foreground font-mono text-xs w-20 shrink-0">
-                  {new Date(run.createdAt).toLocaleTimeString("ko-KR")}
+                  {new Date(run.createdAt + "Z").toLocaleTimeString("ko-KR")}
                 </span>
                 <Badge variant="secondary" className="font-mono text-xs shrink-0">
                   {run.model.replace("claude-", "")}

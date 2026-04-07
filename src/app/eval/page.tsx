@@ -141,7 +141,7 @@ export default function EvalPage() {
                     </Badge>
                     <ScoreBadge score={evaluation.totalScore} />
                     <span className="text-xs text-muted-foreground ml-auto">
-                      {new Date(evaluation.createdAt).toLocaleTimeString("ko-KR")}
+                      {new Date(evaluation.createdAt + "Z").toLocaleTimeString("ko-KR")}
                     </span>
                   </div>
                   <p className="text-xs text-foreground truncate">
