@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Search, X } from "lucide-react";
 import type { Run } from "@/lib/db/schema";
 
 export default function RunsPage() {
@@ -15,9 +17,12 @@ export default function RunsPage() {
   const [prompt, setPrompt] = useState("");
   const [system, setSystem] = useState("");
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searching, setSearching] = useState(false);
 
-  async function fetchRuns() {
-    const res = await fetch("/api/runs");
+  async function fetchRuns(q?: string) {
+    const url = q ? `/api/runs?q=${encodeURIComponent(q)}` : "/api/runs";
+    const res = await fetch(url);
     const data = await res.json();
     setRuns(data);
   }
@@ -25,6 +30,14 @@ export default function RunsPage() {
   useEffect(() => {
     fetchRuns();
   }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearching(true);
+      fetchRuns(query.trim() || undefined).finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
   async function handleSubmit() {
     if (!prompt.trim()) return;
@@ -43,11 +56,26 @@ export default function RunsPage() {
     <div className="flex h-screen overflow-hidden">
       {/* Run List */}
       <div className="w-96 shrink-0 border-r border-border flex flex-col">
-        <div className="px-5 py-4 border-b border-border">
+        <div className="px-5 py-4 border-b border-border space-y-2">
           <h1 className="text-sm font-semibold text-foreground">Runs</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            전체 LLM 호출 기록
-          </p>
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="검색 (FTS5)..."
+              className="pl-7 pr-7 h-7 text-xs"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+          {searching && <p className="text-xs text-muted-foreground">검색 중...</p>}
         </div>
 
         <div className="flex-1 min-h-0">

@@ -4,8 +4,89 @@ import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Radio, Trash2, Copy, Check } from "lucide-react";
+import { Radio, Trash2, Copy, Check, ChevronRight, ChevronDown } from "lucide-react";
 import type { LiveEvent } from "@/lib/live-emitter";
+
+// ── JSON Tree ────────────────────────────────────────────────────────────────
+function JsonNode({ data, depth = 0 }: { data: unknown; depth?: number }) {
+  const [open, setOpen] = useState(depth < 2);
+
+  if (data === null) return <span className="text-muted-foreground/70">null</span>;
+  if (data === undefined) return <span className="text-muted-foreground/70">undefined</span>;
+  if (typeof data === "boolean") return <span className="text-orange-400">{String(data)}</span>;
+  if (typeof data === "number") return <span className="text-blue-400">{data}</span>;
+  if (typeof data === "string") {
+    return (
+      <span className="text-green-400 break-all">
+        &ldquo;{data.length > 300 ? data.slice(0, 300) + "…" : data}&rdquo;
+      </span>
+    );
+  }
+
+  if (Array.isArray(data)) {
+    if (data.length === 0) return <span className="text-muted-foreground">[]</span>;
+    return (
+      <span>
+        <button onClick={() => setOpen((v) => !v)} className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">
+          {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+          <span className="text-muted-foreground/60">[{data.length}]</span>
+        </button>
+        {open && (
+          <div className="pl-3 border-l border-border/40 ml-1 mt-0.5 space-y-0.5">
+            {data.map((item, i) => (
+              <div key={i} className="flex gap-1">
+                <span className="text-muted-foreground/40 select-none shrink-0">{i}</span>
+                <JsonNode data={item} depth={depth + 1} />
+              </div>
+            ))}
+          </div>
+        )}
+      </span>
+    );
+  }
+
+  if (typeof data === "object") {
+    const entries = Object.entries(data as Record<string, unknown>);
+    if (entries.length === 0) return <span className="text-muted-foreground">{"{}"}</span>;
+    return (
+      <span>
+        <button onClick={() => setOpen((v) => !v)} className="text-muted-foreground hover:text-foreground inline-flex items-center gap-0.5">
+          {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+          <span className="text-muted-foreground/60">{`{${entries.length}}`}</span>
+        </button>
+        {open && (
+          <div className="pl-3 border-l border-border/40 ml-1 mt-0.5 space-y-0.5">
+            {entries.map(([k, v]) => (
+              <div key={k} className="flex gap-1 flex-wrap">
+                <span className="text-sky-300 shrink-0">{k}:</span>
+                <JsonNode data={v} depth={depth + 1} />
+              </div>
+            ))}
+          </div>
+        )}
+      </span>
+    );
+  }
+
+  return <span>{String(data)}</span>;
+}
+
+function JsonBlock({ raw, label }: { raw?: string; label: string }) {
+  if (!raw) return null;
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { parsed = null; }
+
+  return (
+    <div className="mt-1.5">
+      <span className="text-xs text-muted-foreground/50 uppercase tracking-wide">{label}</span>
+      <div className="mt-0.5 bg-secondary rounded px-2 py-1.5 text-xs font-mono">
+        {parsed !== null ? <JsonNode data={parsed} /> : (
+          <span className="text-muted-foreground whitespace-pre-wrap break-all">{raw}</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const EVENT_COLORS: Record<string, string> = {
   PreToolUse:   "text-blue-400 border-blue-500/30 bg-blue-500/10",
@@ -69,18 +150,19 @@ function EventRow({ e, onDelete }: { e: LiveEvent; onDelete: () => void }) {
   const eventColor = EVENT_COLORS[e.event] ?? "text-muted-foreground border-border";
   const toolColor = e.tool ? (TOOL_COLORS[e.tool] ?? "text-muted-foreground border-border bg-secondary") : "";
   const preview = tryParseInput(e.input);
+  const canExpand = !!(e.input || e.output);
 
   return (
     <div className="group flex items-start gap-3 px-4 py-2.5 border-b border-border/50 hover:bg-accent/20 transition-colors">
       <span
         className="text-xs text-muted-foreground/60 font-mono w-20 shrink-0 pt-0.5 cursor-pointer"
-        onClick={() => preview && setExpanded((v) => !v)}
+        onClick={() => canExpand && setExpanded((v) => !v)}
       >
         {formatTime(e.timestamp)}
       </span>
       <div
         className="flex items-center gap-2 w-28 shrink-0 cursor-pointer"
-        onClick={() => preview && setExpanded((v) => !v)}
+        onClick={() => canExpand && setExpanded((v) => !v)}
       >
         <Badge variant="outline" className={`text-xs ${eventColor}`}>
           {e.event.replace("ToolUse", "")}
@@ -90,23 +172,24 @@ function EventRow({ e, onDelete }: { e: LiveEvent; onDelete: () => void }) {
         <Badge
           variant="outline"
           className={`text-xs shrink-0 cursor-pointer ${toolColor}`}
-          onClick={() => preview && setExpanded((v) => !v)}
+          onClick={() => canExpand && setExpanded((v) => !v)}
         >
           {e.tool}
         </Badge>
       )}
       <div
         className="flex-1 min-w-0 cursor-pointer"
-        onClick={() => preview && setExpanded((v) => !v)}
+        onClick={() => canExpand && setExpanded((v) => !v)}
       >
         {!expanded ? (
           <code className="text-xs text-muted-foreground font-mono truncate block">
             {preview}
           </code>
         ) : (
-          <pre className="text-xs text-foreground font-mono whitespace-pre-wrap break-all bg-secondary rounded px-2 py-1.5 mt-0.5">
-            {e.input}
-          </pre>
+          <div className="mt-0.5">
+            <JsonBlock raw={e.input} label="input" />
+            {e.output && <JsonBlock raw={e.output} label="output" />}
+          </div>
         )}
       </div>
       <Button
