@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Save, GitBranch, Clock, FileText, AlertCircle, AtSign, ChevronRight } from "lucide-react";
+import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
+import { NoProjectSelected } from "@/components/NoProjectSelected";
 import type { PromptVersion } from "@/lib/db/schema";
 
 function estimateTokens(text: string) {
@@ -122,12 +123,7 @@ export default function PromptsPage() {
           <span className="text-sm font-medium text-foreground shrink-0">CLAUDE.md</span>
           <ProjectSwitcher />
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center space-y-2">
-            <AlertCircle size={32} className="text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">프로젝트를 선택해주세요</p>
-          </div>
-        </div>
+        <NoProjectSelected />
       </div>
     );
   }

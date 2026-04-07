@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Webhook, Plus, Trash2, Save, Globe, FolderOpen } from "lucide-react";
+import { NoProjectSelected } from "@/components/NoProjectSelected";
 
 type HookEntry = { type: "command"; command: string };
 type HookMatcher = { matcher?: string; hooks: HookEntry[] };
@@ -319,14 +320,18 @@ export default function HooksPage() {
 
           {(["project", "global"] as const).map((scope) => (
             <TabsContent key={scope} value={scope} className="flex-1 overflow-hidden mt-0 pt-0">
-              <ScopePanel
-                scope={scope}
-                hooks={scope === "global" ? globalHooks : projectHooks}
-                saving={saving === scope}
-                onSave={() => handleSave(scope)}
-                onDelete={(event, idx) => handleDelete(scope, event, idx)}
-                onAdd={() => { setAddScope(scope); setDialogOpen(true); }}
-              />
+              {scope === "project" && !selectedProject ? (
+                <NoProjectSelected />
+              ) : (
+                <ScopePanel
+                  scope={scope}
+                  hooks={scope === "global" ? globalHooks : projectHooks}
+                  saving={saving === scope}
+                  onSave={() => handleSave(scope)}
+                  onDelete={(event, idx) => handleDelete(scope, event, idx)}
+                  onAdd={() => { setAddScope(scope); setDialogOpen(true); }}
+                />
+              )}
             </TabsContent>
           ))}
         </Tabs>

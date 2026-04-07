@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Zap, Plus, Trash2, Save, Globe, FolderOpen, Pencil, Terminal, Wrench } from "lucide-react";
 import type { Skill } from "@/app/api/skills/route";
+import { NoProjectSelected } from "@/components/NoProjectSelected";
 
 const DEFAULT_SKILL_TEMPLATE = (name: string) =>
 `---
@@ -284,7 +285,7 @@ export default function SkillsPage() {
           </div>
 
           <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
-            <SkillList skills={projectSkills} scope="project" />
+            {!selectedProject ? <NoProjectSelected /> : <SkillList skills={projectSkills} scope="project" />}
           </TabsContent>
           <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
             <SkillList skills={globalSkills} scope="global" />

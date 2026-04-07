@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Brain, Search, Trash2, Globe, FolderOpen, User, MessageSquare, Folder, Link, Plus, Pencil, Save } from "lucide-react";
 import type { MemoryFile } from "@/app/api/memory/route";
+import { NoProjectSelected } from "@/components/NoProjectSelected";
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   user:      { label: "User",      color: "text-blue-400 border-blue-500/30 bg-blue-500/10",       icon: User },
@@ -266,15 +267,15 @@ export default function MemoryPage() {
                     <Plus size={13} className="mr-1" />추가
                   </Button>
                 </div>
-                <ScrollArea className="h-[calc(100%-44px)]">
-                  <div className="p-6 space-y-4">
-                    {scope === "project" && !selectedProject ? (
-                      <p className="text-xs text-muted-foreground py-6 text-center">프로젝트를 선택해주세요</p>
-                    ) : (
+                {scope === "project" && !selectedProject ? (
+                  <NoProjectSelected />
+                ) : (
+                  <ScrollArea className="h-[calc(100%-44px)]">
+                    <div className="p-6 space-y-4">
                       <MemoryList memories={memories} query={query} onEdit={openEdit} onDelete={handleDelete} />
-                    )}
-                  </div>
-                </ScrollArea>
+                    </div>
+                  </ScrollArea>
+                )}
               </TabsContent>
             );
           })}

@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Bot, Plus, Trash2, Pencil, Globe, FolderOpen, Save, Brain, Cpu, Wrench } from "lucide-react";
+import { NoProjectSelected } from "@/components/NoProjectSelected";
 import type { AgentFile } from "@/app/api/agents/route";
 
 // color → tailwind classes
@@ -275,7 +276,7 @@ export default function AgentsPage() {
             </TabsList>
           </div>
           <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
-            <AgentList agents={projectAgents} scope="project" onAdd={() => openNew("project")} onEdit={openEdit} onDelete={handleDelete} />
+            {!selectedProject ? <NoProjectSelected /> : <AgentList agents={projectAgents} scope="project" onAdd={() => openNew("project")} onEdit={openEdit} onDelete={handleDelete} />}
           </TabsContent>
           <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
             <AgentList agents={globalAgents} scope="global" onAdd={() => openNew("global")} onEdit={openEdit} onDelete={handleDelete} />
