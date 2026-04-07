@@ -169,7 +169,7 @@ function ScopePanel({
     scope === "global"
       ? "~/.claude/settings.json"
       : projectPath
-      ? `~/.claude/projects/${projectPath}/settings.json`
+      ? `~/.claude/projects${projectPath}/settings.json`
       : "~/.claude/projects/{key}/settings.json";
 
   return (
