@@ -263,7 +263,7 @@ export default function SkillsPage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <Tabs defaultValue="global" className="h-full flex flex-col">
+        <Tabs defaultValue="project" className="h-full flex flex-col">
           <div className="px-5 pt-3 shrink-0">
             <TabsList>
               <TabsTrigger value="global" className="gap-1.5 text-xs">
