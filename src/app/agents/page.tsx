@@ -76,9 +76,7 @@ function AgentCard({
   const c = getColor(agent.color);
 
   return (
-    <div className={`group relative rounded-lg border border-border hover:border-border/80 transition-colors overflow-hidden`}>
-      {/* color bar */}
-      <div className={`h-1 w-full ${c.dot}`} />
+    <div className="group relative rounded-lg border border-border hover:border-border/80 transition-colors overflow-hidden">
       <div className="p-4 space-y-2.5">
         {/* header */}
         <div className="flex items-start gap-2.5">
@@ -119,17 +117,21 @@ function AgentCard({
         )}
 
         {/* tools */}
-        {agent.tools.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap">
-            <Wrench size={10} className="text-muted-foreground/50 shrink-0" />
-            {agent.tools.slice(0, 6).map((t) => (
-              <Badge key={t} variant="outline" className="text-xs font-mono px-1.5 py-0">{t}</Badge>
-            ))}
-            {agent.tools.length > 6 && (
-              <span className="text-xs text-muted-foreground">+{agent.tools.length - 6}</span>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-1 flex-wrap">
+          <Wrench size={10} className="text-muted-foreground/50 shrink-0" />
+          {agent.tools.length === 0 ? (
+            <span className="text-xs text-muted-foreground/50">모든 툴 사용 가능</span>
+          ) : (
+            <>
+              {agent.tools.slice(0, 6).map((t) => (
+                <Badge key={t} variant="outline" className="text-xs font-mono px-1.5 py-0">{t}</Badge>
+              ))}
+              {agent.tools.length > 6 && (
+                <span className="text-xs text-muted-foreground">+{agent.tools.length - 6}</span>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
