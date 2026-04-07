@@ -137,7 +137,7 @@ export async function loggedClaude({
   return { run, response: finalResponse, messages };
 }
 
-function calcCost(model: string, inputTokens: number, outputTokens: number) {
+export function calcCost(model: string, inputTokens: number, outputTokens: number) {
   const pricing: Record<string, { input: number; output: number }> = {
     "claude-sonnet-4-5": { input: 3.0, output: 15.0 },
     "claude-haiku-4-5": { input: 0.8, output: 4.0 },

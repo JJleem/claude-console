@@ -35,6 +35,13 @@ function writeSettings(filePath: string, data: Record<string, unknown>) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
+// Claude Code stores project settings at ~/.claude/projects/{encoded}/settings.json
+// where the encoded path replaces all "/" with "-"
+function getClaudeProjectSettingsPath(projectPath: string): string {
+  const encoded = projectPath.replace(/[/_]/g, "-");
+  return path.join(os.homedir(), ".claude", "projects", encoded, "settings.json");
+}
+
 export async function GET(req: NextRequest) {
   const projectPath = req.nextUrl.searchParams.get("projectPath");
 
@@ -46,7 +53,7 @@ export async function GET(req: NextRequest) {
   let projectSettingsExists = false;
 
   if (projectPath) {
-    const projectSettingsPath = path.join(projectPath, ".claude", "settings.json");
+    const projectSettingsPath = getClaudeProjectSettingsPath(projectPath);
     projectSettingsExists = fs.existsSync(projectSettingsPath);
     const projectSettings = readSettings(projectSettingsPath);
     projectHooks = (projectSettings.hooks as HooksConfig) ?? {};
@@ -68,7 +75,7 @@ export async function PUT(req: NextRequest) {
     const existing = readSettings(globalPath);
     writeSettings(globalPath, { ...existing, hooks });
   } else if (scope === "project" && projectPath) {
-    const projectSettingsPath = path.join(projectPath, ".claude", "settings.json");
+    const projectSettingsPath = getClaudeProjectSettingsPath(projectPath);
     const existing = readSettings(projectSettingsPath);
     writeSettings(projectSettingsPath, { ...existing, hooks });
   }

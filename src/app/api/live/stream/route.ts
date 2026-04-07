@@ -25,6 +25,8 @@ export async function GET() {
     timestamp: new Date(r.createdAt).getTime(),
   }));
 
+  let cleanup: (() => void) | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(
@@ -32,6 +34,7 @@ export async function GET() {
       );
 
       function onEvent(e: LiveEvent) {
+        if (controller.desiredSize === null) return;
         try {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "event", event: e })}\n\n`)
@@ -44,6 +47,11 @@ export async function GET() {
       liveEmitter.on("event", onEvent);
 
       const hb = setInterval(() => {
+        if (controller.desiredSize === null) {
+          clearInterval(hb);
+          liveEmitter.off("event", onEvent);
+          return;
+        }
         try {
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch {
@@ -52,10 +60,14 @@ export async function GET() {
         }
       }, 15000);
 
-      return () => {
+      cleanup = () => {
         liveEmitter.off("event", onEvent);
         clearInterval(hb);
       };
+    },
+    cancel() {
+      cleanup?.();
+      cleanup = null;
     },
   });
 

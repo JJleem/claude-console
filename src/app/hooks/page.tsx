@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Webhook, Plus, Trash2, Save, Globe, FolderOpen } from "lucide-react";
+import { Webhook, Plus, Trash2, Save, Globe, FolderOpen, Check } from "lucide-react";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 
 type HookEntry = { type: "command"; command: string };
@@ -48,7 +48,7 @@ const EVENT_INFO: Record<EventType, { desc: string; examples: string[] }> = {
     desc: "툴 실행이 완료된 직후 호출됩니다. 실행 결과를 로깅하거나 후처리 작업에 활용합니다.",
     examples: [
       "echo '[PostToolUse] $CLAUDE_TOOL_NAME done' >> ~/claude-hooks.log",
-      "curl -s -X POST http://localhost:4000/hook -d '{\"event\":\"PostToolUse\"}'",
+      `python3 -c "import json,os,urllib.request; d=json.dumps({'event':'PostToolUse','tool':os.environ.get('CLAUDE_TOOL_NAME',''),'input':os.environ.get('CLAUDE_TOOL_INPUT','')[:500],'output':os.environ.get('CLAUDE_TOOL_OUTPUT','')[:500]}).encode(); urllib.request.urlopen(urllib.request.Request('http://localhost:3000/api/live/event',d,{'Content-Type':'application/json'}),timeout=3)" 2>/dev/null || true`,
     ],
   },
   Stop: {
@@ -122,6 +122,9 @@ function ScopePanel({
   scope,
   hooks,
   saving,
+  dirty,
+  savedFlash,
+  projectPath,
   onSave,
   onDelete,
   onAdd,
@@ -129,12 +132,20 @@ function ScopePanel({
   scope: "global" | "project";
   hooks: HooksConfig;
   saving: boolean;
+  dirty: boolean;
+  savedFlash: boolean;
+  projectPath?: string;
   onSave: () => void;
   onDelete: (event: EventType, idx: number) => void;
   onAdd: () => void;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<EventType>("PreToolUse");
-  const scopeLabel = scope === "global" ? "~/.claude/settings.json" : ".claude/settings.json";
+  const scopeLabel =
+    scope === "global"
+      ? "~/.claude/settings.json"
+      : projectPath
+      ? `~/.claude/projects/${projectPath.replace(/[/_]/g, "-")}/settings.json`
+      : "~/.claude/projects/{key}/settings.json";
 
   return (
     <div className="flex flex-col h-full">
@@ -146,9 +157,20 @@ function ScopePanel({
             <Plus size={13} className="mr-1" />
             훅 추가
           </Button>
-          <Button size="sm" onClick={onSave} disabled={saving}>
-            <Save size={13} className="mr-1" />
-            {saving ? "저장 중..." : "저장"}
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={saving || !dirty}
+            variant={savedFlash ? "outline" : "default"}
+            className={savedFlash ? "text-green-400 border-green-500/40" : ""}
+          >
+            {saving ? (
+              <><Save size={13} className="mr-1 animate-pulse" />저장 중...</>
+            ) : savedFlash ? (
+              <><Check size={13} className="mr-1" />저장됨</>
+            ) : (
+              <><Save size={13} className="mr-1" />저장{dirty ? " •" : ""}</>
+            )}
           </Button>
         </div>
       </div>
@@ -231,6 +253,8 @@ export default function HooksPage() {
   const [globalHooks, setGlobalHooks] = useState<HooksConfig>({});
   const [projectHooks, setProjectHooks] = useState<HooksConfig>({});
   const [saving, setSaving] = useState<"global" | "project" | null>(null);
+  const [dirty, setDirty] = useState<{ global: boolean; project: boolean }>({ global: false, project: false });
+  const [savedFlash, setSavedFlash] = useState<{ global: boolean; project: boolean }>({ global: false, project: false });
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addScope, setAddScope] = useState<"global" | "project">("global");
@@ -246,6 +270,7 @@ export default function HooksPage() {
     const data = await res.json();
     setGlobalHooks(data.global ?? {});
     setProjectHooks(data.project ?? {});
+    setDirty({ global: false, project: false });
   }, [selectedProject]);
 
   useEffect(() => { fetchHooks(); }, [fetchHooks]);
@@ -259,6 +284,9 @@ export default function HooksPage() {
       body: JSON.stringify({ scope, projectPath: selectedProject?.path, hooks }),
     });
     setSaving(null);
+    setDirty((d) => ({ ...d, [scope]: false }));
+    setSavedFlash((f) => ({ ...f, [scope]: true }));
+    setTimeout(() => setSavedFlash((f) => ({ ...f, [scope]: false })), 2000);
   }
 
   function handleDelete(scope: "global" | "project", event: EventType, idx: number) {
@@ -268,6 +296,7 @@ export default function HooksPage() {
     updated[event] = (updated[event] ?? []).filter((_, i) => i !== idx);
     if (updated[event]?.length === 0) delete updated[event];
     setter(updated);
+    setDirty((d) => ({ ...d, [scope]: true }));
   }
 
   function handleAdd() {
@@ -279,6 +308,7 @@ export default function HooksPage() {
       hooks: [{ type: "command", command: newCommand.trim() }],
     };
     setter({ ...hooks, [newEvent]: [...(hooks[newEvent] ?? []), entry] });
+    setDirty((d) => ({ ...d, [addScope]: true }));
     setNewCommand("");
     setNewMatcher("");
     setDialogOpen(false);
@@ -327,6 +357,9 @@ export default function HooksPage() {
                   scope={scope}
                   hooks={scope === "global" ? globalHooks : projectHooks}
                   saving={saving === scope}
+                  dirty={dirty[scope]}
+                  savedFlash={savedFlash[scope]}
+                  projectPath={selectedProject?.path}
                   onSave={() => handleSave(scope)}
                   onDelete={(event, idx) => handleDelete(scope, event, idx)}
                   onAdd={() => { setAddScope(scope); setDialogOpen(true); }}

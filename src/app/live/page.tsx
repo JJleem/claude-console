@@ -12,6 +12,7 @@ const EVENT_COLORS: Record<string, string> = {
   PostToolUse:  "text-green-400 border-green-500/30 bg-green-500/10",
   Stop:         "text-orange-400 border-orange-500/30 bg-orange-500/10",
   Notification: "text-purple-400 border-purple-500/30 bg-purple-500/10",
+  ABTest:       "text-pink-400 border-pink-500/30 bg-pink-500/10",
 };
 
 const TOOL_COLORS: Record<string, string> = {
@@ -24,9 +25,20 @@ const TOOL_COLORS: Record<string, string> = {
   Agent:   "text-pink-400 border-pink-500/30 bg-pink-500/10",
 };
 
-const HOOK_CMD = `curl -s -X POST http://localhost:3000/api/live/event \\
-  -H "Content-Type: application/json" \\
-  -d "{\\"event\\":\\"PostToolUse\\",\\"tool\\":\\"$CLAUDE_TOOL_NAME\\",\\"input\\":\\"$(echo $CLAUDE_TOOL_INPUT | head -c 300)\\"}"`;
+const HOOK_CMD = `python3 -c "
+import json, os, urllib.request
+d = json.dumps({
+  'event': os.environ.get('CLAUDE_HOOK_EVENT', 'PostToolUse'),
+  'tool': os.environ.get('CLAUDE_TOOL_NAME', ''),
+  'input': os.environ.get('CLAUDE_TOOL_INPUT', '')[:500],
+  'output': os.environ.get('CLAUDE_TOOL_OUTPUT', '')[:500],
+  'sessionId': os.environ.get('CLAUDE_SESSION_ID', ''),
+}).encode()
+urllib.request.urlopen(
+  urllib.request.Request('http://localhost:3000/api/live/event', d, {'Content-Type': 'application/json'}),
+  timeout=3
+)
+" 2>/dev/null || true`;
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString("ko-KR", {

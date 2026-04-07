@@ -72,21 +72,25 @@ export const harnesses = sqliteTable("harnesses", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
   name: text("name").notNull(),
-  model: text("model").notNull().default("claude-sonnet-4-6"),
-  systemA: text("system_a").notNull().default(""),
-  systemB: text("system_b").notNull().default(""),
+  system: text("system").notNull().default(""),   // 시스템 프롬프트 단일 저장
   description: text("description").default(""),
 });
 
 export const harnessRuns = sqliteTable("harness_runs", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
-  harnessId: text("harness_id").notNull(),
+  harnessIdA: text("harness_id_a"),               // null = 기본값 (시스템 없음)
+  harnessIdB: text("harness_id_b"),               // null = 기본값 (시스템 없음)
+  model: text("model").notNull().default("claude-sonnet-4-6"),
   userMessage: text("user_message").notNull(),
   responseA: text("response_a").notNull(),
   responseB: text("response_b").notNull(),
-  tokensA: integer("tokens_a").notNull().default(0),
-  tokensB: integer("tokens_b").notNull().default(0),
+  systemASnapshot: text("system_a_snapshot").default(""), // 실행 시점 스냅샷
+  systemBSnapshot: text("system_b_snapshot").default(""),
+  inputTokensA: integer("input_tokens_a").notNull().default(0),
+  outputTokensA: integer("output_tokens_a").notNull().default(0),
+  inputTokensB: integer("input_tokens_b").notNull().default(0),
+  outputTokensB: integer("output_tokens_b").notNull().default(0),
   msA: integer("ms_a").notNull().default(0),
   msB: integer("ms_b").notNull().default(0),
   winner: text("winner").default(""),       // "A" | "B" | "tie" | ""
