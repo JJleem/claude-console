@@ -43,6 +43,7 @@ urllib.request.urlopen(
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString("ko-KR", {
     hour: "2-digit", minute: "2-digit", second: "2-digit",
+    timeZone: "Asia/Seoul",
   });
 }
 
@@ -222,7 +223,7 @@ export default function LivePage() {
 
       {/* Filter bar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2 shrink-0">
-        {["all", "PreToolUse", "PostToolUse", "Stop", "Notification"].map((f) => (
+        {["all", "PreToolUse", "PostToolUse", "Stop", "Notification", "ABTest"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
