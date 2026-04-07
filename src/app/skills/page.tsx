@@ -266,13 +266,6 @@ export default function SkillsPage() {
         <Tabs defaultValue="project" className="h-full flex flex-col">
           <div className="px-5 pt-3 shrink-0">
             <TabsList>
-              <TabsTrigger value="global" className="gap-1.5 text-xs">
-                <Globe size={12} />
-                글로벌
-                {globalSkills.length > 0 && (
-                  <Badge variant="secondary" className="text-xs h-4 px-1">{globalSkills.length}</Badge>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="project" className="gap-1.5 text-xs">
                 <FolderOpen size={12} />
                 프로젝트
@@ -280,14 +273,21 @@ export default function SkillsPage() {
                   <Badge variant="secondary" className="text-xs h-4 px-1">{projectSkills.length}</Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="global" className="gap-1.5 text-xs">
+                <Globe size={12} />
+                글로벌
+                {globalSkills.length > 0 && (
+                  <Badge variant="secondary" className="text-xs h-4 px-1">{globalSkills.length}</Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
           </div>
 
-          <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
-            <SkillList skills={globalSkills} scope="global" />
-          </TabsContent>
           <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
             <SkillList skills={projectSkills} scope="project" />
+          </TabsContent>
+          <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
+            <SkillList skills={globalSkills} scope="global" />
           </TabsContent>
         </Tabs>
       </div>
