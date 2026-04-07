@@ -18,6 +18,7 @@ import {
   Sun,
   Moon,
   GitCompare,
+  Layers,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/hooks",   icon: Webhook,         label: "Hooks" },
   { href: "/skills",  icon: Zap,             label: "Skills" },
   { href: "/memory",  icon: Brain,           label: "Memory" },
+  { href: "/context", icon: Layers,          label: "Context" },
   { href: "/settings",icon: Settings,        label: "Settings" },
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
   { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
