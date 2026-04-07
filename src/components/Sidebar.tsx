@@ -17,6 +17,7 @@ import {
   FolderOpen,
   Sun,
   Moon,
+  GitCompare,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -31,6 +32,7 @@ const navItems = [
   { href: "/memory",  icon: Brain,           label: "Memory" },
   { href: "/settings",icon: Settings,        label: "Settings" },
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
+  { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
   { href: "/live",    icon: Radio,           label: "Live", live: true },
 ];
 
