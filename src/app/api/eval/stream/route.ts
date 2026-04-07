@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/lib/db";
 import { runs, evaluations } from "@/lib/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 
 export const maxDuration = 120;
 
@@ -43,7 +43,7 @@ get_runs 도구로 runs를 가져온 뒤, 각 run마다 반드시 submit_evaluat
 모든 runs를 채점한 뒤 전체 요약을 한국어로 작성해라.`;
 
 export async function POST(req: NextRequest) {
-  const { limit = 5 } = await req.json();
+  const { limit = 5, runIds }: { limit?: number; runIds?: string[] } = await req.json();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -53,7 +53,10 @@ export async function POST(req: NextRequest) {
 
       try {
         const messages: Anthropic.MessageParam[] = [
-          { role: "user", content: `최근 ${limit}개의 runs를 가져와서 전부 채점해줘.` },
+          { role: "user", content: runIds?.length
+            ? `다음 run ID 목록을 채점해줘: ${runIds.join(", ")}`
+            : `최근 ${limit}개의 runs를 가져와서 전부 채점해줘.`
+          },
         ];
 
         let evalCount = 0;
@@ -114,8 +117,9 @@ export async function POST(req: NextRequest) {
               if (block.type !== "tool_use") continue;
 
               if (block.name === "get_runs") {
-                send({ type: "progress", message: `runs 조회 중 (최근 ${limit}개)...` });
                 const input = block.input as { limit?: number };
+                const fetchCount = runIds?.length ?? input.limit ?? limit;
+                send({ type: "progress", message: runIds?.length ? `선택한 ${runIds.length}개 runs 조회 중...` : `runs 조회 중 (최근 ${fetchCount}개)...` });
                 const recentRuns = await db
                   .select({
                     id: runs.id, model: runs.model, userPrompt: runs.userPrompt,
@@ -123,8 +127,10 @@ export async function POST(req: NextRequest) {
                     outputTokens: runs.outputTokens, costUsd: runs.costUsd, createdAt: runs.createdAt,
                   })
                   .from(runs)
+                  .$dynamic()
+                  .where(runIds?.length ? inArray(runs.id, runIds) : undefined)
                   .orderBy(desc(runs.createdAt))
-                  .limit(input.limit ?? limit);
+                  .limit(runIds?.length ?? fetchCount);
 
                 toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(recentRuns) });
               }

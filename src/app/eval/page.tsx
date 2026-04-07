@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FlaskConical, Loader2, ArrowDownLeft, ArrowUpRight, Clock, DollarSign } from "lucide-react";
+import { FlaskConical, Loader2, ArrowDownLeft, ArrowUpRight, Clock, DollarSign, ListChecks } from "lucide-react";
+import type { Run } from "@/lib/db/schema";
 
 type EvalResult = {
   evaluation: {
@@ -66,13 +67,40 @@ export default function EvalPage() {
   const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(5);
 
+  // 직접 선택 모드
+  const [pickMode, setPickMode] = useState(false);
+  const [recentRuns, setRecentRuns] = useState<Run[]>([]);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+
   async function fetchResults() {
     const res = await fetch("/api/eval");
     const data = await res.json();
     setResults(data);
   }
 
+  async function fetchRecentRuns() {
+    const res = await fetch("/api/runs");
+    const data = await res.json();
+    setRecentRuns(data);
+  }
+
   useEffect(() => { fetchResults(); }, []);
+
+  function togglePickMode() {
+    setPickMode((v) => {
+      if (!v) fetchRecentRuns();
+      return !v;
+    });
+    setCheckedIds(new Set());
+  }
+
+  function toggleCheck(id: string) {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   async function runEval() {
     setLoading(true);
@@ -81,10 +109,14 @@ export default function EvalPage() {
     setSelected(null);
 
     try {
+      const body = pickMode && checkedIds.size > 0
+        ? { runIds: [...checkedIds] }
+        : { limit };
+
       const res = await fetch("/api/eval/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok || !res.body) { setLoading(false); return; }
@@ -241,26 +273,83 @@ export default function EvalPage() {
 
         {/* Controls */}
         <div className="p-4 border-b border-border space-y-3">
+          {/* 모드 전환 */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">채점할 runs</span>
-            <div className="flex gap-1 ml-auto">
+            <button
+              onClick={togglePickMode}
+              className={`ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
+                pickMode ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <ListChecks size={11} />
+              직접 선택
+            </button>
+          </div>
+
+          {/* 빠른 선택 (pickMode 아닐 때) */}
+          {!pickMode && (
+            <div className="flex gap-1">
               {[3, 5, 10].map((n) => (
                 <button
                   key={n}
                   onClick={() => setLimit(n)}
-                  className={`text-xs px-2 py-1 rounded transition-colors ${
+                  className={`flex-1 text-xs py-1.5 rounded transition-colors ${
                     limit === n ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {n}개
+                  최근 {n}개
                 </button>
               ))}
             </div>
-          </div>
-          <Button onClick={runEval} disabled={loading} className="w-full" size="sm">
+          )}
+
+          {/* 직접 선택 목록 */}
+          {pickMode && (
+            <div className="border border-border rounded-md overflow-hidden">
+              <div className="px-3 py-1.5 bg-secondary/50 flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">최근 runs</span>
+                {checkedIds.size > 0 && (
+                  <span className="text-[10px] text-primary">{checkedIds.size}개 선택</span>
+                )}
+              </div>
+              <ScrollArea className="max-h-48">
+                {recentRuns.length === 0 ? (
+                  <p className="text-xs text-muted-foreground p-3">runs가 없습니다</p>
+                ) : recentRuns.map((run) => (
+                  <label
+                    key={run.id}
+                    className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/30 cursor-pointer border-b border-border/50 last:border-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checkedIds.has(run.id)}
+                      onChange={() => toggleCheck(run.id)}
+                      className="mt-0.5 accent-primary shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs text-foreground truncate">{run.userPrompt}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">
+                        {run.model.replace("claude-", "")} · {new Date(run.createdAt + "Z").toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul" })}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </ScrollArea>
+            </div>
+          )}
+
+          <Button
+            onClick={runEval}
+            disabled={loading || (pickMode && checkedIds.size === 0)}
+            className="w-full"
+            size="sm"
+          >
             {loading
               ? <><Loader2 size={14} className="mr-2 animate-spin" />채점 중...</>
-              : <><FlaskConical size={14} className="mr-2" />Eval 실행</>}
+              : <><FlaskConical size={14} className="mr-2" />
+                {pickMode && checkedIds.size > 0 ? `${checkedIds.size}개 Eval 실행` : "Eval 실행"}
+              </>}
           </Button>
           {loading && progress && (
             <p className="text-[11px] text-muted-foreground animate-pulse leading-snug">{progress}</p>
