@@ -15,8 +15,11 @@ import {
   FlaskConical,
   Radio,
   FolderOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
+import { useTheme } from "@/lib/theme-context";
 
 const navItems = [
   { href: "/",        icon: LayoutDashboard, label: "Overview" },
@@ -34,6 +37,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { selectedProject } = useProject();
+  const { theme, toggle } = useTheme();
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-border bg-sidebar h-screen sticky top-0">
@@ -78,6 +82,16 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="px-3 py-2 border-t border-border flex items-center justify-between">
+        <button
+          onClick={toggle}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-md hover:bg-accent/50"
+        >
+          {theme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
+      </div>
 
       <div className="px-5 py-4 border-t border-border">
         {selectedProject ? (
