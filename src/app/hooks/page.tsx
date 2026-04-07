@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Webhook, Plus, Trash2, Save, Globe, FolderOpen, Check } from "lucide-react";
+import { Webhook, Plus, Trash2, Save, Globe, FolderOpen, Check, Pencil, ChevronDown, ChevronUp } from "lucide-react";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 
 type HookEntry = { type: "command"; command: string };
@@ -67,12 +67,63 @@ const EVENT_INFO: Record<EventType, { desc: string; examples: string[] }> = {
   },
 };
 
+function HookCard({
+  matcher,
+  idx,
+  onDelete,
+  onEdit,
+}: {
+  matcher: HookMatcher;
+  idx: number;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <Card className="border-border">
+      <CardContent className="py-3 px-4">
+        {matcher.matcher && (
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-xs text-muted-foreground">matcher:</span>
+            <Badge variant="outline" className="text-xs font-mono">{matcher.matcher}</Badge>
+          </div>
+        )}
+        {matcher.hooks.map((h, j) => (
+          <div key={j} className="space-y-1">
+            <div
+              className="flex items-start gap-2 cursor-pointer group"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              <pre className={`flex-1 text-xs bg-secondary px-2 py-1.5 rounded font-mono text-foreground leading-snug ${expanded ? "whitespace-pre-wrap break-all" : "truncate"}`}>
+                {h.command}
+              </pre>
+              <span className="text-muted-foreground/50 group-hover:text-muted-foreground mt-1 shrink-0">
+                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </span>
+            </div>
+          </div>
+        ))}
+        <div className="flex gap-1 mt-2 justify-end">
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground" onClick={onEdit}>
+            <Pencil size={11} />
+          </Button>
+          <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+            <Trash2 size={11} />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function HookList({
   matchers,
   onDelete,
+  onEdit,
 }: {
   matchers: HookMatcher[];
   onDelete: (idx: number) => void;
+  onEdit: (idx: number) => void;
 }) {
   if (matchers.length === 0) {
     return (
@@ -84,35 +135,7 @@ function HookList({
   return (
     <div className="space-y-2">
       {matchers.map((m, i) => (
-        <Card key={i} className="border-border">
-          <CardContent className="py-3 px-4">
-            <div className="flex items-start gap-3">
-              <div className="flex-1 min-w-0 space-y-1.5">
-                {m.matcher && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">matcher:</span>
-                    <Badge variant="outline" className="text-xs font-mono">
-                      {m.matcher}
-                    </Badge>
-                  </div>
-                )}
-                {m.hooks.map((h, j) => (
-                  <code key={j} className="block text-xs bg-secondary px-2 py-1 rounded font-mono text-foreground truncate">
-                    {h.command}
-                  </code>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 w-7 p-0 shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => onDelete(i)}
-              >
-                <Trash2 size={12} />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <HookCard key={i} matcher={m} idx={i} onDelete={() => onDelete(i)} onEdit={() => onEdit(i)} />
       ))}
     </div>
   );
@@ -128,6 +151,7 @@ function ScopePanel({
   onSave,
   onDelete,
   onAdd,
+  onEdit,
 }: {
   scope: "global" | "project";
   hooks: HooksConfig;
@@ -138,6 +162,7 @@ function ScopePanel({
   onSave: () => void;
   onDelete: (event: EventType, idx: number) => void;
   onAdd: () => void;
+  onEdit: (event: EventType, idx: number) => void;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<EventType>("PreToolUse");
   const scopeLabel =
@@ -221,6 +246,7 @@ function ScopePanel({
               <HookList
                 matchers={hooks[selectedEvent] ?? []}
                 onDelete={(idx) => onDelete(selectedEvent, idx)}
+                onEdit={(idx) => onEdit(selectedEvent, idx)}
               />
 
               {/* description */}
@@ -261,6 +287,13 @@ export default function HooksPage() {
   const [newEvent, setNewEvent] = useState<EventType>("PostToolUse");
   const [newMatcher, setNewMatcher] = useState("");
   const [newCommand, setNewCommand] = useState("");
+
+  // edit state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editScope, setEditScope] = useState<"global" | "project">("global");
+  const [editEvent, setEditEvent] = useState<EventType>("PostToolUse");
+  const [editIdx, setEditIdx] = useState(0);
+  const [editCommand, setEditCommand] = useState("");
 
   const fetchHooks = useCallback(async () => {
     const params = selectedProject
@@ -314,6 +347,29 @@ export default function HooksPage() {
     setDialogOpen(false);
   }
 
+  function handleEditOpen(scope: "global" | "project", event: EventType, idx: number) {
+    const hooks = scope === "global" ? globalHooks : projectHooks;
+    const cmd = hooks[event]?.[idx]?.hooks[0]?.command ?? "";
+    setEditScope(scope);
+    setEditEvent(event);
+    setEditIdx(idx);
+    setEditCommand(cmd);
+    setEditOpen(true);
+  }
+
+  function handleEditSave() {
+    if (!editCommand.trim()) return;
+    const setter = editScope === "global" ? setGlobalHooks : setProjectHooks;
+    const hooks = editScope === "global" ? globalHooks : projectHooks;
+    const updated = { ...hooks };
+    const matchers = [...(updated[editEvent] ?? [])];
+    matchers[editIdx] = { ...matchers[editIdx], hooks: [{ type: "command", command: editCommand.trim() }] };
+    updated[editEvent] = matchers;
+    setter(updated);
+    setDirty((d) => ({ ...d, [editScope]: true }));
+    setEditOpen(false);
+  }
+
   const totalCount = (h: HooksConfig) =>
     EVENT_TYPES.reduce((s, e) => s + (h[e]?.length ?? 0), 0);
 
@@ -363,12 +419,38 @@ export default function HooksPage() {
                   onSave={() => handleSave(scope)}
                   onDelete={(event, idx) => handleDelete(scope, event, idx)}
                   onAdd={() => { setAddScope(scope); setDialogOpen(true); }}
+                  onEdit={(event, idx) => handleEditOpen(scope, event, idx)}
                 />
               )}
             </TabsContent>
           ))}
         </Tabs>
       </div>
+
+      {/* Edit Hook Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">훅 편집 — {editEvent}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">커맨드</label>
+              <textarea
+                value={editCommand}
+                onChange={(e) => setEditCommand(e.target.value)}
+                rows={6}
+                spellCheck={false}
+                className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono leading-relaxed resize-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleEditSave} disabled={!editCommand.trim()} className="flex-1">저장</Button>
+              <Button variant="outline" onClick={() => setEditOpen(false)}>취소</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Hook Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
