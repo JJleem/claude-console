@@ -6,152 +6,174 @@ import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import {
-  Bot, Trash2, ChevronRight, ChevronDown,
-  Clock, DollarSign, Layers, GitBranch,
-} from "lucide-react";
-import type { Agent, Run } from "@/lib/db/schema";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Bot, Plus, Trash2, Pencil, Globe, FolderOpen, Save, Brain, Cpu, Wrench } from "lucide-react";
+import type { AgentFile } from "@/app/api/agents/route";
 
-type AgentWithRuns = Agent & { runs: Run[] };
-type RunNode = Run & { children: RunNode[] };
+// color → tailwind classes
+const AGENT_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  green:  { bg: "bg-green-500/10",  text: "text-green-400",  dot: "bg-green-400"  },
+  blue:   { bg: "bg-blue-500/10",   text: "text-blue-400",   dot: "bg-blue-400"   },
+  yellow: { bg: "bg-yellow-500/10", text: "text-yellow-400", dot: "bg-yellow-400" },
+  red:    { bg: "bg-red-500/10",    text: "text-red-400",    dot: "bg-red-400"    },
+  purple: { bg: "bg-purple-500/10", text: "text-purple-400", dot: "bg-purple-400" },
+  orange: { bg: "bg-orange-500/10", text: "text-orange-400", dot: "bg-orange-400" },
+  pink:   { bg: "bg-pink-500/10",   text: "text-pink-400",   dot: "bg-pink-400"   },
+  cyan:   { bg: "bg-cyan-500/10",   text: "text-cyan-400",   dot: "bg-cyan-400"   },
+};
 
-function buildTree(runs: Run[]): RunNode[] {
-  const map: Record<string, RunNode> = {};
-  for (const r of runs) map[r.id] = { ...r, children: [] };
+const MODEL_SHORT: Record<string, string> = {
+  "opus":   "Opus",
+  "sonnet": "Sonnet",
+  "haiku":  "Haiku",
+};
 
-  const roots: RunNode[] = [];
-  for (const r of runs) {
-    if (r.parentRunId && map[r.parentRunId]) {
-      map[r.parentRunId].children.push(map[r.id]);
-    } else {
-      roots.push(map[r.id]);
-    }
+function getColor(color: string) {
+  return AGENT_COLORS[color] ?? { bg: "bg-primary/10", text: "text-primary", dot: "bg-primary" };
+}
+
+function modelLabel(model: string) {
+  for (const [k, v] of Object.entries(MODEL_SHORT)) {
+    if (model.toLowerCase().includes(k)) return v;
   }
-  return roots;
+  return model || "Default";
 }
 
-function formatMs(ms: number) {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
+const DEFAULT_TEMPLATE = (name: string) =>
+`---
+name: ${name}
+description: 이 에이전트가 언제 사용될지 설명하세요 (Claude가 자동 선택 기준으로 사용)
+model: sonnet
+color: blue
+memory: project
+tools: Read, Bash, Edit, Grep
+---
 
-function formatCost(usd: number) {
-  if (usd < 0.001) return `$${(usd * 1000).toFixed(3)}m`;
-  return `$${usd.toFixed(4)}`;
-}
+# ${name}
 
-function RunNode({ node, depth = 0 }: { node: RunNode; depth?: number }) {
-  const [expanded, setExpanded] = useState(depth === 0);
-  const hasChildren = node.children.length > 0;
-  const prompt = node.userPrompt.slice(0, 80);
+## 역할
+이 에이전트의 전문 영역과 역할을 작성하세요.
+
+## 핵심 책임
+- 책임 1
+- 책임 2
+
+## 동작 원칙
+1. 원칙 1
+2. 원칙 2
+`;
+
+function AgentCard({
+  agent,
+  onEdit,
+  onDelete,
+}: {
+  agent: AgentFile;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const c = getColor(agent.color);
 
   return (
-    <div>
-      <div
-        className={`flex items-start gap-2 py-2 px-3 rounded-md hover:bg-accent/30 transition-colors cursor-pointer group ${depth > 0 ? "ml-5 border-l border-border pl-4" : ""}`}
-        style={{ marginLeft: depth > 0 ? `${depth * 16}px` : 0 }}
-        onClick={() => hasChildren && setExpanded((v) => !v)}
-      >
-        <div className="shrink-0 mt-0.5 w-4">
-          {hasChildren ? (
-            expanded ? <ChevronDown size={13} className="text-muted-foreground" /> : <ChevronRight size={13} className="text-muted-foreground" />
-          ) : (
-            <div className="w-3 h-3 rounded-full border border-border mt-0.5" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0 space-y-0.5">
-          <p className="text-xs text-foreground truncate">{prompt}{node.userPrompt.length > 80 ? "…" : ""}</p>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="font-mono">{node.model.split("-").slice(-2).join("-")}</span>
-            <span className="flex items-center gap-1">
-              <Clock size={10} />{formatMs(node.durationMs)}
-            </span>
-            <span className="flex items-center gap-1">
-              <DollarSign size={10} />{formatCost(node.costUsd)}
-            </span>
-            <span>{node.inputTokens + node.outputTokens} tok</span>
-            {hasChildren && (
-              <span className="flex items-center gap-1 text-primary">
-                <GitBranch size={10} />{node.children.length}
+    <div className={`group relative rounded-lg border border-border hover:border-border/80 transition-colors overflow-hidden`}>
+      {/* color bar */}
+      <div className={`h-1 w-full ${c.dot}`} />
+      <div className="p-4 space-y-2.5">
+        {/* header */}
+        <div className="flex items-start gap-2.5">
+          <div className={`w-8 h-8 rounded-md ${c.bg} flex items-center justify-center shrink-0`}>
+            <Bot size={15} className={c.text} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-foreground">{agent.name}</span>
+              <Badge variant="outline" className={`text-xs ${c.text} border-current/30 ${c.bg}`}>
+                {agent.color}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Cpu size={10} />{modelLabel(agent.model)}
               </span>
-            )}
+              {agent.memory && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Brain size={10} />memory:{agent.memory}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={onEdit}>
+              <Pencil size={12} />
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={onDelete}>
+              <Trash2 size={12} />
+            </Button>
           </div>
         </div>
-        <span className="text-xs text-muted-foreground/50 shrink-0 font-mono">
-          {new Date(node.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-        </span>
+
+        {/* description */}
+        {agent.description && (
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{agent.description}</p>
+        )}
+
+        {/* tools */}
+        {agent.tools.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            <Wrench size={10} className="text-muted-foreground/50 shrink-0" />
+            {agent.tools.slice(0, 6).map((t) => (
+              <Badge key={t} variant="outline" className="text-xs font-mono px-1.5 py-0">{t}</Badge>
+            ))}
+            {agent.tools.length > 6 && (
+              <span className="text-xs text-muted-foreground">+{agent.tools.length - 6}</span>
+            )}
+          </div>
+        )}
       </div>
-      {expanded && hasChildren && (
-        <div>
-          {node.children.map((child) => (
-            <RunNode key={child.id} node={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
 
-function AgentDetail({ agent }: { agent: AgentWithRuns }) {
-  const tree = buildTree(agent.runs);
-  const totalCost = agent.runs.reduce((s, r) => s + r.costUsd, 0);
-  const totalTokens = agent.runs.reduce((s, r) => s + r.inputTokens + r.outputTokens, 0);
-  const totalDuration = agent.runs.reduce((s, r) => s + r.durationMs, 0);
-  const maxDepth = (nodes: RunNode[], d = 0): number =>
-    nodes.length === 0 ? d : Math.max(...nodes.map((n) => maxDepth(n.children, d + 1)));
-  const depth = maxDepth(tree);
-
+function AgentList({
+  agents,
+  scope,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  agents: AgentFile[];
+  scope: "global" | "project";
+  onAdd: () => void;
+  onEdit: (a: AgentFile) => void;
+  onDelete: (a: AgentFile) => void;
+}) {
+  const scopeLabel = scope === "global" ? "~/.claude/agents/" : ".claude/agents/";
   return (
     <div className="flex flex-col h-full">
-      {/* agent header */}
-      <div className="px-5 py-4 border-b border-border space-y-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <Bot size={15} className="text-primary" />
-          <span className="text-sm font-medium text-foreground">{agent.name}</span>
-          <Badge
-            variant="outline"
-            className={`text-xs ml-auto ${
-              agent.status === "running"
-                ? "text-green-400 border-green-500/30 bg-green-500/10"
-                : "text-muted-foreground border-border"
-            }`}
-          >
-            {agent.status}
-          </Badge>
-        </div>
-        <div className="grid grid-cols-4 gap-3">
-          {[
-            { icon: Layers, label: "Runs", value: agent.runs.length },
-            { icon: DollarSign, label: "비용", value: formatCost(totalCost) },
-            { icon: Clock, label: "총 시간", value: formatMs(totalDuration) },
-            { icon: GitBranch, label: "깊이", value: depth },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="bg-accent/30 rounded-lg px-3 py-2 space-y-0.5">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Icon size={10} />
-                <span className="text-xs">{label}</span>
-              </div>
-              <p className="text-sm font-medium text-foreground">{value}</p>
-            </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          총 <span className="text-foreground font-mono">{totalTokens.toLocaleString()}</span> 토큰
-          · 생성 {new Date(agent.createdAt).toLocaleDateString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </p>
-      </div>
-
-      {/* run tree */}
-      <div className="px-3 py-2 border-b border-border shrink-0">
-        <span className="text-xs text-muted-foreground font-medium">실행 트리</span>
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-border shrink-0">
+        <p className="text-xs text-muted-foreground font-mono">{scopeLabel}</p>
+        <Button size="sm" variant="outline" onClick={onAdd}>
+          <Plus size={13} className="mr-1" />에이전트 추가
+        </Button>
       </div>
       <ScrollArea className="flex-1">
-        <div className="p-3 space-y-0.5">
-          {tree.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">실행 기록이 없습니다</p>
+        <div className="p-4">
+          {agents.length === 0 ? (
+            <div className="py-12 text-center space-y-2">
+              <Bot size={28} className="text-muted-foreground/30 mx-auto" />
+              <p className="text-xs text-muted-foreground">등록된 에이전트가 없습니다</p>
+              <p className="text-xs text-muted-foreground/50">
+                에이전트는 Claude Code에서 <code className="font-mono">@agent-name</code>으로 호출하거나<br />
+                Claude가 자동으로 description을 보고 선택합니다
+              </p>
+            </div>
           ) : (
-            tree.map((node) => <RunNode key={node.id} node={node} depth={0} />)
+            <div className="grid grid-cols-1 gap-3">
+              {agents.map((a) => (
+                <AgentCard key={a.filename} agent={a} onEdit={() => onEdit(a)} onDelete={() => onDelete(a)} />
+              ))}
+            </div>
           )}
         </div>
       </ScrollArea>
@@ -161,115 +183,150 @@ function AgentDetail({ agent }: { agent: AgentWithRuns }) {
 
 export default function AgentsPage() {
   const { selectedProject } = useProject();
-  const [agents, setAgents] = useState<AgentWithRuns[]>([]);
-  const [selected, setSelected] = useState<AgentWithRuns | null>(null);
+  const [globalAgents, setGlobalAgents] = useState<AgentFile[]>([]);
+  const [projectAgents, setProjectAgents] = useState<AgentFile[]>([]);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editScope, setEditScope] = useState<"global" | "project">("project");
+  const [editFilename, setEditFilename] = useState("");
+  const [editRaw, setEditRaw] = useState("");
+  const [saving, setSaving] = useState(false);
+  const isNew = editFilename === "" || (
+    !globalAgents.find(a => a.filename === editFilename && editScope === "global") &&
+    !projectAgents.find(a => a.filename === editFilename && editScope === "project")
+  );
+  const [newName, setNewName] = useState("");
 
   const fetchAgents = useCallback(async () => {
-    const params = selectedProject ? `?projectId=${selectedProject.id}` : "";
+    const params = selectedProject ? `?projectPath=${encodeURIComponent(selectedProject.path)}` : "";
     const res = await fetch(`/api/agents${params}`);
     const data = await res.json();
-    setAgents(data);
-    setSelected((prev) => {
-      if (!prev) return data[0] ?? null;
-      return data.find((a: AgentWithRuns) => a.id === prev.id) ?? data[0] ?? null;
-    });
+    setGlobalAgents(data.global ?? []);
+    setProjectAgents(data.project ?? []);
   }, [selectedProject]);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
-  async function handleDelete(agent: AgentWithRuns) {
+  function openNew(scope: "global" | "project") {
+    setEditScope(scope);
+    setEditFilename("");
+    setNewName("");
+    setEditRaw(DEFAULT_TEMPLATE("my-agent"));
+    setDialogOpen(true);
+  }
+
+  function openEdit(agent: AgentFile) {
+    setEditScope(agent.scope);
+    setEditFilename(agent.filename);
+    setNewName("");
+    setEditRaw(agent.raw);
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
+    const filename = isNew
+      ? `${newName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-") || "my-agent"}.md`
+      : editFilename;
+    setSaving(true);
+    await fetch("/api/agents", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope: editScope, projectPath: selectedProject?.path, filename, raw: editRaw }),
+    });
+    setSaving(false);
+    setDialogOpen(false);
+    fetchAgents();
+  }
+
+  async function handleDelete(agent: AgentFile) {
     await fetch("/api/agents", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: agent.id }),
+      body: JSON.stringify({ scope: agent.scope, projectPath: selectedProject?.path, filename: agent.filename }),
     });
-    setSelected(null);
     fetchAgents();
   }
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {/* Header */}
       <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
         <Bot size={14} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium text-foreground shrink-0">Agents</span>
         <ProjectSwitcher />
-        <Badge variant="secondary" className="text-xs ml-auto">{agents.length}</Badge>
+        <div className="ml-auto flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">{globalAgents.length + projectAgents.length}</Badge>
+        </div>
       </div>
 
-      {agents.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-          <Bot size={32} className="text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">등록된 에이전트가 없습니다</p>
-          <p className="text-xs text-muted-foreground/60 max-w-sm">
-            <code className="font-mono">loggedClaude()</code>에 <code className="font-mono">agentId</code>를 전달하면
-            에이전트별 실행 흐름을 여기서 트리 형태로 확인할 수 있습니다
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-1 overflow-hidden">
-          {/* Left: agent list */}
-          <div className="w-56 shrink-0 border-r border-border flex flex-col">
-            <ScrollArea className="flex-1">
-              <div className="py-2">
-                {agents.map((agent) => {
-                  const isActive = selected?.id === agent.id;
-                  const cost = agent.runs.reduce((s, r) => s + r.costUsd, 0);
-                  return (
-                    <button
-                      key={agent.id}
-                      onClick={() => setSelected(agent)}
-                      className={`w-full text-left px-4 py-3 transition-colors group flex items-start gap-2 ${
-                        isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            agent.status === "running" ? "bg-green-400 animate-pulse" : "bg-muted-foreground/40"
-                          }`} />
-                          <span className="text-xs font-medium truncate">{agent.name}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{agent.runs.length} runs</span>
-                          <span>{formatCost(cost)}</span>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 shrink-0 hover:text-destructive transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(agent); }}
-                      >
-                        <Trash2 size={11} />
-                      </Button>
-                    </button>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-            <Separator />
-            <div className="px-4 py-3 space-y-1">
-              <p className="text-xs text-muted-foreground">전체</p>
-              <p className="text-xs font-mono text-foreground">
-                {agents.reduce((s, a) => s + a.runs.length, 0)} runs
-                · {formatCost(agents.reduce((s, a) => s + a.runs.reduce((ss, r) => ss + r.costUsd, 0), 0))}
-              </p>
-            </div>
+      <div className="flex-1 overflow-hidden">
+        <Tabs defaultValue="project" className="h-full flex flex-col">
+          <div className="px-5 pt-3 shrink-0">
+            <TabsList>
+              <TabsTrigger value="project" className="gap-1.5 text-xs">
+                <FolderOpen size={12} />프로젝트
+                {projectAgents.length > 0 && <Badge variant="secondary" className="text-xs h-4 px-1">{projectAgents.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="global" className="gap-1.5 text-xs">
+                <Globe size={12} />글로벌
+                {globalAgents.length > 0 && <Badge variant="secondary" className="text-xs h-4 px-1">{globalAgents.length}</Badge>}
+              </TabsTrigger>
+            </TabsList>
           </div>
+          <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
+            <AgentList agents={projectAgents} scope="project" onAdd={() => openNew("project")} onEdit={openEdit} onDelete={handleDelete} />
+          </TabsContent>
+          <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
+            <AgentList agents={globalAgents} scope="global" onAdd={() => openNew("global")} onEdit={openEdit} onDelete={handleDelete} />
+          </TabsContent>
+        </Tabs>
+      </div>
 
-          {/* Right: detail */}
-          <div className="flex-1 overflow-hidden">
-            {selected ? (
-              <AgentDetail agent={selected} />
-            ) : (
-              <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
-                에이전트를 선택하세요
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">
+              {isNew ? "에이전트 추가" : `에이전트 편집 — ${editFilename}`}
+              <span className="ml-2 text-muted-foreground font-normal">({editScope === "global" ? "글로벌" : "프로젝트"})</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-1">
+            {isNew && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">파일명 <span className="font-normal opacity-60">(영문 소문자·하이픈)</span></label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={newName}
+                    onChange={(e) => {
+                      const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                      setNewName(v);
+                      setEditRaw(DEFAULT_TEMPLATE(v || "my-agent"));
+                    }}
+                    placeholder="my-agent"
+                    className="flex-1 text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                  />
+                  <span className="text-xs text-muted-foreground">.md</span>
+                </div>
               </div>
             )}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">agent.md</label>
+              <textarea
+                value={editRaw}
+                onChange={(e) => setEditRaw(e.target.value)}
+                rows={18}
+                spellCheck={false}
+                className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono resize-none leading-relaxed"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleSave} disabled={saving || (isNew && !newName.trim())} className="flex-1">
+                <Save size={13} className="mr-1" />{saving ? "저장 중..." : "저장"}
+              </Button>
+              <Button variant="outline" onClick={() => setDialogOpen(false)}>취소</Button>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
