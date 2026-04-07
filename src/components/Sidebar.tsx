@@ -113,6 +113,31 @@ export function Sidebar() {
           </Link>
         )}
       </div>
+
+      {/* Footer */}
+      <div className="px-5 py-3 border-t border-border/60">
+        <a
+          href="https://github.com/JJleem"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-2.5 group"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://github.com/JJleem.png"
+            alt="JJleem"
+            className="w-6 h-6 rounded-full border border-border/60 shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors leading-none mb-0.5">
+              molt
+            </p>
+            <p className="text-[10px] text-muted-foreground/60 truncate leading-none">
+              leemjaejun@gmail.com
+            </p>
+          </div>
+        </a>
+      </div>
     </aside>
   );
 }
