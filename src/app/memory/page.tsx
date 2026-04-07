@@ -195,9 +195,9 @@ export default function MemoryPage() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="p-6 max-w-4xl space-y-4">
-          <Tabs defaultValue="project">
+      <div className="flex-1 overflow-hidden">
+        <Tabs defaultValue="project" className="h-full flex flex-col">
+          <div className="px-6 pt-4 shrink-0">
             <TabsList>
               <TabsTrigger value="project" className="gap-1.5 text-xs">
                 <FolderOpen size={12} />
@@ -218,40 +218,48 @@ export default function MemoryPage() {
                 )}
               </TabsTrigger>
             </TabsList>
+          </div>
 
-            <TabsContent value="project" className="mt-4">
-              {!selectedProject ? (
-                <p className="text-xs text-muted-foreground py-6 text-center">
-                  프로젝트를 선택해주세요
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground font-mono mb-4">
-                    ~/.claude/projects/{selectedProject.path.replace(/[/_]/g, "-")}/memory/
-                  </p>
-                  <MemoryList
-                    memories={projectMemory}
-                    query={query}
-                    onDelete={handleDelete}
-                    projectPath={selectedProject.path}
-                  />
-                </>
-              )}
+            <TabsContent value="project" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-6 space-y-4">
+                  {!selectedProject ? (
+                    <p className="text-xs text-muted-foreground py-6 text-center">
+                      프로젝트를 선택해주세요
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        ~/.claude/projects/{selectedProject.path.replace(/[/_]/g, "-")}/memory/
+                      </p>
+                      <MemoryList
+                        memories={projectMemory}
+                        query={query}
+                        onDelete={handleDelete}
+                        projectPath={selectedProject.path}
+                      />
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="global" className="mt-4">
-              <p className="text-xs text-muted-foreground font-mono mb-4">
-                ~/.claude/memory/
-              </p>
-              <MemoryList
-                memories={globalMemory}
-                query={query}
-                onDelete={handleDelete}
-              />
+            <TabsContent value="global" className="flex-1 overflow-hidden mt-0">
+              <ScrollArea className="h-full">
+                <div className="p-6 space-y-4">
+                  <p className="text-xs text-muted-foreground font-mono">
+                    ~/.claude/memory/
+                  </p>
+                  <MemoryList
+                    memories={globalMemory}
+                    query={query}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
         </div>
-      </ScrollArea>
     </div>
   );
 }
