@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
   if (q) {
-    // FTS5 full-text search — map snake_case → camelCase to match Drizzle output
+    // Substring search across user_prompt, system_prompt, response
     type RawRun = {
       id: string; created_at: string; model: string;
       input_tokens: number; output_tokens: number; cost_usd: number;
@@ -16,13 +16,13 @@ export async function GET(req: NextRequest) {
       response: string; has_image: number; agent_id: string | null;
       parent_run_id: string | null; metadata: string | null;
     };
+    const like = `%${q}%`;
     const raw = sqlite.prepare(`
-      SELECT runs.* FROM runs_fts
-      JOIN runs ON runs_fts.id = runs.id
-      WHERE runs_fts MATCH ?
-      ORDER BY rank
+      SELECT * FROM runs
+      WHERE user_prompt LIKE ? OR system_prompt LIKE ? OR response LIKE ?
+      ORDER BY created_at DESC
       LIMIT 100
-    `).all(q) as RawRun[];
+    `).all(like, like, like) as RawRun[];
     const rows = raw.map((r) => ({
       id: r.id, createdAt: r.created_at, model: r.model,
       inputTokens: r.input_tokens, outputTokens: r.output_tokens,
