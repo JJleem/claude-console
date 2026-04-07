@@ -313,7 +313,7 @@ export default function EvalPage() {
                   <span className="text-[10px] text-primary">{checkedIds.size}개 선택</span>
                 )}
               </div>
-              <ScrollArea className="max-h-48">
+              <div className="max-h-64 overflow-y-auto">
                 {recentRuns.length === 0 ? (
                   <p className="text-xs text-muted-foreground p-3">runs가 없습니다</p>
                 ) : recentRuns.map((run) => (
@@ -335,7 +335,7 @@ export default function EvalPage() {
                     </div>
                   </label>
                 ))}
-              </ScrollArea>
+              </div>
             </div>
           )}
 
