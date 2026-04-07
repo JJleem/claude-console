@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
-import { runs, evaluations } from "@/lib/db/schema";
+import { runs, evaluations, hookEvents } from "@/lib/db/schema";
 import { desc, eq, inArray } from "drizzle-orm";
+import { pushEvent } from "@/lib/live-emitter";
 
 export const maxDuration = 120;
 
@@ -124,12 +126,17 @@ export async function POST(req: NextRequest) {
               if (block.name === "get_runs") {
                 const input = block.input as { limit?: number };
                 const fetchCount = runIds?.length ?? input.limit ?? limit;
-                send({
-                  type: "progress",
-                  message: runIds?.length
-                    ? `선택한 ${runIds.length}개 runs 조회 중...`
-                    : `runs 조회 중 (최근 ${fetchCount}개)...`,
-                });
+                const progressMsg = runIds?.length
+                  ? `선택한 ${runIds.length}개 runs 조회 중...`
+                  : `runs 조회 중 (최근 ${fetchCount}개)...`;
+                send({ type: "progress", message: progressMsg });
+
+                // Live monitor
+                try {
+                  const eid = randomUUID();
+                  await db.insert(hookEvents).values({ id: eid, event: "Eval", tool: `get_runs · ${model}`, input: progressMsg, output: "" });
+                  pushEvent({ id: eid, event: "Eval", tool: `get_runs · ${model}`, input: progressMsg, output: "", timestamp: Date.now() });
+                } catch {}
 
                 const fetched = await db
                   .select({
@@ -160,12 +167,22 @@ export async function POST(req: NextRequest) {
                   message: `run #${evalCount} 채점 중... (관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy})`,
                 });
 
+                const totalScore = (relevance + quality + accuracy) / 3;
                 await db.insert(evaluations).values({
                   runId, relevance, quality, accuracy,
-                  totalScore: (relevance + quality + accuracy) / 3,
+                  totalScore,
                   feedback,
                   judgeModel: model,
                 });
+
+                // Live monitor
+                try {
+                  const eid = randomUUID();
+                  const evalInput = `runId: ${runId}`;
+                  const evalOutput = `관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy} | avg ${totalScore.toFixed(2)} — ${feedback.slice(0, 150)}`;
+                  await db.insert(hookEvents).values({ id: eid, event: "Eval", tool: `submit_evaluation · ${model}`, input: evalInput, output: evalOutput });
+                  pushEvent({ id: eid, event: "Eval", tool: `submit_evaluation · ${model}`, input: evalInput, output: evalOutput, timestamp: Date.now() });
+                } catch {}
 
                 toolResults.push({
                   type: "tool_result",

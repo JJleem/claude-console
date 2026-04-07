@@ -13,6 +13,7 @@ const EVENT_COLORS: Record<string, string> = {
   Stop:         "text-orange-400 border-orange-500/30 bg-orange-500/10",
   Notification: "text-purple-400 border-purple-500/30 bg-purple-500/10",
   ABTest:       "text-pink-400 border-pink-500/30 bg-pink-500/10",
+  Eval:         "text-amber-400 border-amber-500/30 bg-amber-500/10",
 };
 
 const TOOL_COLORS: Record<string, string> = {
@@ -223,7 +224,7 @@ export default function LivePage() {
 
       {/* Filter bar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-2 shrink-0">
-        {["all", "PreToolUse", "PostToolUse", "Stop", "Notification", "ABTest"].map((f) => (
+        {["all", "PreToolUse", "PostToolUse", "Stop", "Notification", "ABTest", "Eval"].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}

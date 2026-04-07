@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 
 export type LiveEvent = {
   id: string;
-  event: "PreToolUse" | "PostToolUse" | "Stop" | "Notification" | "ABTest";
+  event: "PreToolUse" | "PostToolUse" | "Stop" | "Notification" | "ABTest" | "Eval";
   tool?: string;
   input?: string;
   output?: string;
