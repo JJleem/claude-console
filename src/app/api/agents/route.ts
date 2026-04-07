@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { agents, runs } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 
 export async function GET(req: NextRequest) {
   const agentId = req.nextUrl.searchParams.get("agentId");
+  const projectId = req.nextUrl.searchParams.get("projectId");
 
   if (agentId) {
-    // single agent + its runs
     const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
     const agentRuns = await db
       .select()
@@ -17,13 +17,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ agent, runs: agentRuns });
   }
 
-  // all agents
+  // filter by projectId if provided
   const allAgents = await db
     .select()
     .from(agents)
+    .where(
+      projectId
+        ? eq(agents.projectId, projectId)
+        : isNull(agents.projectId)
+    )
     .orderBy(desc(agents.createdAt));
 
-  // attach run counts per agent
   const allRuns = await db.select().from(runs);
   const runsByAgent: Record<string, typeof allRuns> = {};
   for (const r of allRuns) {

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useProject } from "@/lib/project-context";
+import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -158,15 +160,20 @@ function AgentDetail({ agent }: { agent: AgentWithRuns }) {
 }
 
 export default function AgentsPage() {
+  const { selectedProject } = useProject();
   const [agents, setAgents] = useState<AgentWithRuns[]>([]);
   const [selected, setSelected] = useState<AgentWithRuns | null>(null);
 
   const fetchAgents = useCallback(async () => {
-    const res = await fetch("/api/agents");
+    const params = selectedProject ? `?projectId=${selectedProject.id}` : "";
+    const res = await fetch(`/api/agents${params}`);
     const data = await res.json();
     setAgents(data);
-    if (data.length > 0 && !selected) setSelected(data[0]);
-  }, [selected]);
+    setSelected((prev) => {
+      if (!prev) return data[0] ?? null;
+      return data.find((a: AgentWithRuns) => a.id === prev.id) ?? data[0] ?? null;
+    });
+  }, [selectedProject]);
 
   useEffect(() => { fetchAgents(); }, [fetchAgents]);
 
@@ -185,8 +192,9 @@ export default function AgentsPage() {
       {/* Header */}
       <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
         <Bot size={14} className="text-muted-foreground shrink-0" />
-        <span className="text-sm font-medium text-foreground">Agents</span>
-        <Badge variant="secondary" className="text-xs">{agents.length}</Badge>
+        <span className="text-sm font-medium text-foreground shrink-0">Agents</span>
+        <ProjectSwitcher />
+        <Badge variant="secondary" className="text-xs ml-auto">{agents.length}</Badge>
       </div>
 
       {agents.length === 0 ? (

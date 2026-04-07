@@ -25,6 +25,7 @@ export const agents = sqliteTable("agents", {
   status: text("status").notNull().default("running"),
   totalRuns: integer("total_runs").default(0),
   totalCost: real("total_cost").default(0),
+  projectId: text("project_id"),
   metadata: text("metadata"),
 });
 
