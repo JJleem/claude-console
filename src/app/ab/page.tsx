@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -84,6 +84,11 @@ function Panel({
   const isWinner = activeWinner === side;
   const isTie = activeWinner === "tie";
   const color = side === "A" ? "blue" : "green";
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (streaming) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [result?.response, streaming]);
 
   return (
     <div className={`flex-1 flex flex-col min-w-0 overflow-hidden border-r last:border-r-0 border-border ${isWinner ? "bg-yellow-500/[0.03]" : ""}`}>
@@ -162,6 +167,7 @@ function Panel({
           ) : (
             <p className="text-xs text-muted-foreground py-4">결과가 여기 표시됩니다</p>
           )}
+          <div ref={bottomRef} />
         </div>
       </ScrollArea>
       </div>
