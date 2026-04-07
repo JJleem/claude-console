@@ -21,7 +21,7 @@ import { useProject } from "@/lib/project-context";
 const navItems = [
   { href: "/",        icon: LayoutDashboard, label: "Overview" },
   { href: "/runs",    icon: List,            label: "Runs" },
-  { href: "/agents",  icon: Bot,             label: "Agents" },
+  { href: "/agents",  icon: Bot,             label: "Subagents" },
   { href: "/prompts", icon: FileText,        label: "Prompts" },
   { href: "/hooks",   icon: Webhook,         label: "Hooks" },
   { href: "/skills",  icon: Zap,             label: "Skills" },

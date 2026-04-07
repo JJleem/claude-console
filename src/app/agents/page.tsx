@@ -253,7 +253,7 @@ export default function AgentsPage() {
     <div className="flex flex-col h-screen overflow-hidden">
       <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
         <Bot size={14} className="text-muted-foreground shrink-0" />
-        <span className="text-sm font-medium text-foreground shrink-0">Agents</span>
+        <span className="text-sm font-medium text-foreground shrink-0">Subagents</span>
         <ProjectSwitcher />
         <div className="ml-auto flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">{globalAgents.length + projectAgents.length}</Badge>
