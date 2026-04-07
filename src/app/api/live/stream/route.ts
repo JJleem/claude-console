@@ -25,7 +25,7 @@ export async function GET() {
     timestamp: new Date(r.createdAt).getTime(),
   }));
 
-  let cleanup: (() => void) | null = null;
+  let closed = false;
 
   const stream = new ReadableStream({
     start(controller) {
@@ -34,12 +34,13 @@ export async function GET() {
       );
 
       function onEvent(e: LiveEvent) {
-        if (controller.desiredSize === null) return;
+        if (closed) return;
         try {
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ type: "event", event: e })}\n\n`)
           );
         } catch {
+          closed = true;
           liveEmitter.off("event", onEvent);
         }
       }
@@ -47,27 +48,28 @@ export async function GET() {
       liveEmitter.on("event", onEvent);
 
       const hb = setInterval(() => {
-        if (controller.desiredSize === null) {
+        if (closed) {
           clearInterval(hb);
-          liveEmitter.off("event", onEvent);
           return;
         }
         try {
           controller.enqueue(encoder.encode(`: heartbeat\n\n`));
         } catch {
+          closed = true;
           clearInterval(hb);
           liveEmitter.off("event", onEvent);
         }
       }, 15000);
 
-      cleanup = () => {
+      // cancel() fires when the client disconnects
+      return () => {
+        closed = true;
         liveEmitter.off("event", onEvent);
         clearInterval(hb);
       };
     },
     cancel() {
-      cleanup?.();
-      cleanup = null;
+      closed = true;
     },
   });
 
