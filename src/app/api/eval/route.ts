@@ -137,7 +137,13 @@ export async function GET() {
       evaluation: evaluations,
       run: {
         userPrompt: runs.userPrompt,
+        systemPrompt: runs.systemPrompt,
+        response: runs.response,
         model: runs.model,
+        inputTokens: runs.inputTokens,
+        outputTokens: runs.outputTokens,
+        costUsd: runs.costUsd,
+        durationMs: runs.durationMs,
       },
     })
     .from(evaluations)
