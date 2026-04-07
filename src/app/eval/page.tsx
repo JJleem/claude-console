@@ -137,7 +137,12 @@ export default function EvalPage() {
           const data = JSON.parse(line.slice(6));
           if (data.type === "progress") setProgress(data.message);
           else if (data.type === "text") setSummary((p) => p + data.text);
-          else if (data.type === "done") { setResults(data.results); setProgress(""); }
+          else if (data.type === "done") {
+            setResults(data.results);
+            setProgress("");
+            // 채점된 항목이 1개면 바로 상세 뷰 오픈
+            if (data.results?.length > 0) setSelected(data.results[0]);
+          }
           else if (data.type === "error") setProgress(`오류: ${data.message}`);
         }
       }

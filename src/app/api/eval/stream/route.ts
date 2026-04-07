@@ -48,24 +48,29 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (obj: object) =>
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+      let closed = false;
+      const send = (obj: object) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+        } catch {}
+      };
 
       try {
         const messages: Anthropic.MessageParam[] = [
-          { role: "user", content: runIds?.length
-            ? `다음 run ID 목록을 채점해줘: ${runIds.join(", ")}`
-            : `최근 ${limit}개의 runs를 가져와서 전부 채점해줘.`
+          {
+            role: "user",
+            content: runIds?.length
+              ? `다음 run ID 목록을 채점해줘: ${runIds.join(", ")}`
+              : `최근 ${limit}개의 runs를 가져와서 전부 채점해줘.`,
           },
         ];
 
         let evalCount = 0;
 
-        // Tool-use loop
         while (true) {
-          send({ type: "progress", message: "Claude 응답 생성 중..." });
-
-          const msg = await anthropic.messages.create({
+          // 매 턴 스트리밍으로 호출 — 텍스트 델타 실시간 전송
+          const msgStream = anthropic.messages.stream({
             model: "claude-sonnet-4-6",
             max_tokens: 4096,
             system: SYSTEM,
@@ -73,44 +78,44 @@ export async function POST(req: NextRequest) {
             messages,
           });
 
-          messages.push({ role: "assistant", content: msg.content });
-
-          if (msg.stop_reason === "end_turn") {
-            // Stream the final summary text
-            send({ type: "progress", message: "요약 작성 중..." });
-
-            // Re-run last turn as streaming for text output
-            const textStream = anthropic.messages.stream({
-              model: "claude-sonnet-4-6",
-              max_tokens: 1024,
-              system: SYSTEM,
-              messages,
-            });
-
-            for await (const event of textStream) {
-              if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-                send({ type: "text", text: event.delta.text });
-              }
+          for await (const event of msgStream) {
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              send({ type: "text", text: event.delta.text });
             }
+          }
 
-            // Fetch updated evaluations and send as done
+          const final = await msgStream.finalMessage();
+          messages.push({ role: "assistant", content: final.content });
+
+          // 최종 응답 — 루프 종료
+          if (final.stop_reason === "end_turn") {
+            // 방금 저장된 evaluations 조회 (GET endpoint와 동일한 구조)
             const results = await db
               .select({
                 evaluation: evaluations,
-                run: { userPrompt: runs.userPrompt, model: runs.model },
+                run: {
+                  userPrompt: runs.userPrompt,
+                  systemPrompt: runs.systemPrompt,
+                  response: runs.response,
+                  model: runs.model,
+                  inputTokens: runs.inputTokens,
+                  outputTokens: runs.outputTokens,
+                  costUsd: runs.costUsd,
+                  durationMs: runs.durationMs,
+                },
               })
               .from(evaluations)
               .innerJoin(runs, eq(evaluations.runId, runs.id))
               .orderBy(desc(evaluations.createdAt))
-              .limit(limit);
+              .limit(50);
 
             send({ type: "done", results });
-            controller.close();
-            return;
+            break;
           }
 
-          if (msg.stop_reason === "tool_use") {
-            const toolBlocks = msg.content.filter((b) => b.type === "tool_use");
+          // 툴 호출 처리
+          if (final.stop_reason === "tool_use") {
+            const toolBlocks = final.content.filter((b) => b.type === "tool_use");
             const toolResults: Anthropic.ToolResultBlockParam[] = [];
 
             for (const block of toolBlocks) {
@@ -119,8 +124,14 @@ export async function POST(req: NextRequest) {
               if (block.name === "get_runs") {
                 const input = block.input as { limit?: number };
                 const fetchCount = runIds?.length ?? input.limit ?? limit;
-                send({ type: "progress", message: runIds?.length ? `선택한 ${runIds.length}개 runs 조회 중...` : `runs 조회 중 (최근 ${fetchCount}개)...` });
-                const recentRuns = await db
+                send({
+                  type: "progress",
+                  message: runIds?.length
+                    ? `선택한 ${runIds.length}개 runs 조회 중...`
+                    : `runs 조회 중 (최근 ${fetchCount}개)...`,
+                });
+
+                const fetched = await db
                   .select({
                     id: runs.id, model: runs.model, userPrompt: runs.userPrompt,
                     response: runs.response, inputTokens: runs.inputTokens,
@@ -132,7 +143,11 @@ export async function POST(req: NextRequest) {
                   .orderBy(desc(runs.createdAt))
                   .limit(runIds?.length ?? fetchCount);
 
-                toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(recentRuns) });
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: block.id,
+                  content: JSON.stringify(fetched),
+                });
               }
 
               if (block.name === "submit_evaluation") {
@@ -140,15 +155,23 @@ export async function POST(req: NextRequest) {
                   runId: string; relevance: number; quality: number; accuracy: number; feedback: string;
                 };
                 evalCount++;
-                send({ type: "progress", message: `run #${evalCount} 채점 중... (관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy})` });
+                send({
+                  type: "progress",
+                  message: `run #${evalCount} 채점 중... (관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy})`,
+                });
 
-                const totalScore = (relevance + quality + accuracy) / 3;
                 await db.insert(evaluations).values({
-                  runId, relevance, quality, accuracy, totalScore, feedback,
+                  runId, relevance, quality, accuracy,
+                  totalScore: (relevance + quality + accuracy) / 3,
+                  feedback,
                   judgeModel: "claude-sonnet-4-6",
                 });
 
-                toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify({ success: true, totalScore }) });
+                toolResults.push({
+                  type: "tool_result",
+                  tool_use_id: block.id,
+                  content: JSON.stringify({ success: true }),
+                });
               }
             }
 
@@ -157,12 +180,18 @@ export async function POST(req: NextRequest) {
         }
       } catch (err) {
         send({ type: "error", message: err instanceof Error ? err.message : "오류" });
+      } finally {
+        closed = true;
         controller.close();
       }
     },
   });
 
   return new Response(stream, {
-    headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
   });
 }
