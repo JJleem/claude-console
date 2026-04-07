@@ -69,6 +69,7 @@ function Panel({
   onChangeHarness,
   result,
   loading,
+  streaming,
   activeWinner,
 }: {
   side: "A" | "B";
@@ -77,6 +78,7 @@ function Panel({
   onChangeHarness: (h: Harness | null) => void;
   result: Result | null;
   loading: boolean;
+  streaming: boolean;
   activeWinner: Winner;
 }) {
   const isWinner = activeWinner === side;
@@ -147,18 +149,16 @@ function Panel({
       <div className="flex-1 min-h-0">
       <ScrollArea className="h-full">
         <div className="p-4">
-          {loading ? (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
-              <Loader2
-                size={14}
-                className={`animate-spin ${side === "A" ? "text-blue-400" : "text-green-400"}`}
-              />
-              응답 생성 중...
-            </div>
-          ) : result ? (
+          {result ? (
             <pre className={`text-sm text-foreground whitespace-pre-wrap leading-relaxed font-sans ${!isWinner && activeWinner ? "opacity-50" : ""}`}>
               {result.response}
+              {streaming && <span className="inline-block w-0.5 h-4 bg-current animate-pulse ml-0.5 align-middle" />}
             </pre>
+          ) : loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm py-4">
+              <Loader2 size={14} className={`animate-spin ${side === "A" ? "text-blue-400" : "text-green-400"}`} />
+              응답 생성 중...
+            </div>
           ) : (
             <p className="text-xs text-muted-foreground py-4">결과가 여기 표시됩니다</p>
           )}
@@ -332,7 +332,9 @@ export default function ABPage() {
   const [model, setModel] = useState(MODELS[1].id);
   const [userMessage, setUserMessage] = useState("");
 
-  const [loading, setLoading] = useState(false);
+  const [loadingA, setLoadingA] = useState(false);
+  const [loadingB, setLoadingB] = useState(false);
+  const loading = loadingA || loadingB;
   const [judging, setJudging] = useState(false);
   const [resultA, setResultA] = useState<Result | null>(null);
   const [resultB, setResultB] = useState<Result | null>(null);
@@ -367,54 +369,102 @@ export default function ABPage() {
 
   // ── 실행 ────────────────────────────────────────────────────────────────────
 
-  async function handleRun() {
-    if (!userMessage.trim()) return;
+  async function streamSlot(
+    system: string,
+    side: "A" | "B"
+  ): Promise<{ response: string; inputTokens: number; outputTokens: number; durationMs: number; costUsd: number } | null> {
+    const setResult = side === "A" ? setResultA : setResultB;
+    const setLoading = side === "A" ? setLoadingA : setLoadingB;
+
     setLoading(true);
-    resetResults();
+    setResult({ response: "", inputTokens: 0, outputTokens: 0, durationMs: 0, costUsd: 0 });
+
+    let accText = "";
+
     try {
-      const systemA = slotA?.system ?? "";
-      const systemB = slotB?.system ?? "";
-
-      const res = await fetch("/api/ab", {
+      const res = await fetch("/api/ab/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ systemA, systemB, userMessage, model }),
+        body: JSON.stringify({ system, userMessage, model, slot: side }),
       });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        setRunError(data.error ?? `오류 (${res.status})`);
-        return;
+
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        setRunError(err.error ?? `오류 (${res.status})`);
+        return null;
       }
-      setResultA(data.a);
-      setResultB(data.b);
 
-      // run 기록 저장
-      const runRes = await fetch("/api/harness", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "run",
-          harnessIdA: slotA?.id ?? null,
-          harnessIdB: slotB?.id ?? null,
-          model,
-          userMessage,
-          responseA: data.a.response,
-          responseB: data.b.response,
-          systemASnapshot: systemA,
-          systemBSnapshot: systemB,
-          inputTokensA: data.a.inputTokens,
-          outputTokensA: data.a.outputTokens,
-          inputTokensB: data.b.inputTokens,
-          outputTokensB: data.b.outputTokens,
-          msA: data.a.durationMs,
-          msB: data.b.durationMs,
-        }),
-      });
-      const run = await runRes.json();
-      setCurrentRunId(run.id);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n\n");
+        buf = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === "text") {
+            accText += data.text;
+            setResult((prev) => prev ? { ...prev, response: accText } : null);
+          } else if (data.type === "done") {
+            setResult({ response: accText, inputTokens: data.inputTokens, outputTokens: data.outputTokens, durationMs: data.durationMs, costUsd: data.costUsd });
+            return { response: accText, ...data };
+          } else if (data.type === "error") {
+            setRunError(data.message);
+            return null;
+          }
+        }
+      }
+      return null;
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleRun() {
+    if (!userMessage.trim()) return;
+    resetResults();
+
+    const systemA = slotA?.system ?? "";
+    const systemB = slotB?.system ?? "";
+
+    const [dataA, dataB] = await Promise.all([
+      streamSlot(systemA, "A"),
+      streamSlot(systemB, "B"),
+    ]);
+
+    if (!dataA || !dataB) return;
+
+    // harness run 기록 저장
+    const runRes = await fetch("/api/harness", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "run",
+        harnessIdA: slotA?.id ?? null,
+        harnessIdB: slotB?.id ?? null,
+        model,
+        userMessage,
+        responseA: dataA.response,
+        responseB: dataB.response,
+        systemASnapshot: systemA,
+        systemBSnapshot: systemB,
+        inputTokensA: dataA.inputTokens,
+        outputTokensA: dataA.outputTokens,
+        inputTokensB: dataB.inputTokens,
+        outputTokensB: dataB.outputTokens,
+        msA: dataA.durationMs,
+        msB: dataB.durationMs,
+      }),
+    });
+    const run = await runRes.json();
+    setCurrentRunId(run.id);
   }
 
   // ── AI 판정 ─────────────────────────────────────────────────────────────────
@@ -612,7 +662,8 @@ export default function ABPage() {
             harnessList={harnessList}
             onChangeHarness={(h) => { setSlotA(h); resetResults(); }}
             result={resultA}
-            loading={loading}
+            loading={loadingA}
+            streaming={loadingA && !!resultA}
             activeWinner={activeWinner}
           />
           <Panel
@@ -621,7 +672,8 @@ export default function ABPage() {
             harnessList={harnessList}
             onChangeHarness={(h) => { setSlotB(h); resetResults(); }}
             result={resultB}
-            loading={loading}
+            loading={loadingB}
+            streaming={loadingB && !!resultB}
             activeWinner={activeWinner}
           />
         </div>

@@ -44,6 +44,7 @@ function ScoreBadge({ score }: { score: number }) {
 export default function EvalPage() {
   const [results, setResults] = useState<EvalResult[]>([]);
   const [summary, setSummary] = useState("");
+  const [progress, setProgress] = useState("");
   const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(5);
 
@@ -53,22 +54,46 @@ export default function EvalPage() {
     setResults(data);
   }
 
-  useEffect(() => {
-    fetchResults();
-  }, []);
+  useEffect(() => { fetchResults(); }, []);
 
   async function runEval() {
     setLoading(true);
     setSummary("");
-    const res = await fetch("/api/eval", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ limit }),
-    });
-    const data = await res.json();
-    setSummary(data.summary);
-    await fetchResults();
-    setLoading(false);
+    setProgress("");
+
+    try {
+      const res = await fetch("/api/eval/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limit }),
+      });
+
+      if (!res.ok || !res.body) { setLoading(false); return; }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n\n");
+        buf = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === "progress") setProgress(data.message);
+          else if (data.type === "text") setSummary((p) => p + data.text);
+          else if (data.type === "done") { setResults(data.results); setProgress(""); }
+          else if (data.type === "error") { setProgress(`오류: ${data.message}`); }
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -102,27 +127,19 @@ export default function EvalPage() {
               ))}
             </div>
           </div>
-          <Button
-            onClick={runEval}
-            disabled={loading}
-            className="w-full"
-            size="sm"
-          >
+          <Button onClick={runEval} disabled={loading} className="w-full" size="sm">
             {loading ? (
-              <>
-                <Loader2 size={14} className="mr-2 animate-spin" />
-                Claude 채점 중...
-              </>
+              <><Loader2 size={14} className="mr-2 animate-spin" />채점 중...</>
             ) : (
-              <>
-                <FlaskConical size={14} className="mr-2" />
-                Eval 실행
-              </>
+              <><FlaskConical size={14} className="mr-2" />Eval 실행</>
             )}
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Claude가 runs를 가져와서 각 항목을 자동 채점합니다
-          </p>
+          {loading && progress && (
+            <p className="text-xs text-muted-foreground animate-pulse">{progress}</p>
+          )}
+          {!loading && !progress && (
+            <p className="text-xs text-muted-foreground">Claude가 runs를 가져와서 각 항목을 자동 채점합니다</p>
+          )}
         </div>
 
         {/* Results list */}
@@ -190,6 +207,7 @@ export default function EvalPage() {
               <CardContent className="pt-4">
                 <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                   {summary}
+                  {loading && <span className="inline-block w-0.5 h-4 bg-current animate-pulse ml-0.5 align-middle" />}
                 </p>
               </CardContent>
             </Card>
