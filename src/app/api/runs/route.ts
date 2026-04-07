@@ -8,14 +8,29 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
   if (q) {
-    // FTS5 full-text search
-    const rows = sqlite.prepare(`
+    // FTS5 full-text search — map snake_case → camelCase to match Drizzle output
+    type RawRun = {
+      id: string; created_at: string; model: string;
+      input_tokens: number; output_tokens: number; cost_usd: number;
+      duration_ms: number; system_prompt: string | null; user_prompt: string;
+      response: string; has_image: number; agent_id: string | null;
+      parent_run_id: string | null; metadata: string | null;
+    };
+    const raw = sqlite.prepare(`
       SELECT runs.* FROM runs_fts
       JOIN runs ON runs_fts.id = runs.id
       WHERE runs_fts MATCH ?
       ORDER BY rank
       LIMIT 100
-    `).all(q) as typeof runs.$inferSelect[];
+    `).all(q) as RawRun[];
+    const rows = raw.map((r) => ({
+      id: r.id, createdAt: r.created_at, model: r.model,
+      inputTokens: r.input_tokens, outputTokens: r.output_tokens,
+      costUsd: r.cost_usd, durationMs: r.duration_ms,
+      systemPrompt: r.system_prompt, userPrompt: r.user_prompt,
+      response: r.response, hasImage: !!r.has_image,
+      agentId: r.agent_id, parentRunId: r.parent_run_id, metadata: r.metadata,
+    }));
     return NextResponse.json(rows);
   }
 
