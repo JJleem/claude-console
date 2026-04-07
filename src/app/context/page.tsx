@@ -131,10 +131,13 @@ export default function ContextPage() {
             <div className="px-6 py-4 border-b border-border shrink-0 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  총 <span className="font-mono text-foreground">{data.totalTokens.toLocaleString()}</span> / {data.contextLimit.toLocaleString()} tokens
+                  총 <span className="font-mono text-foreground">~{data.totalTokens.toLocaleString()}</span> / {data.contextLimit.toLocaleString()} tokens
                 </span>
-                <span className="text-xs font-mono text-foreground">{pct.toFixed(2)}% used</span>
+                <span className="text-xs font-mono text-muted-foreground">~{pct.toFixed(2)}% used</span>
               </div>
+              <p className="text-[10px] text-muted-foreground/50">
+                ※ tiktoken(cl100k_base) 기반 추정값입니다. Anthropic 토크나이저와 다를 수 있습니다.
+              </p>
 
               {/* Stacked bar */}
               <div className="h-2.5 rounded-full bg-secondary overflow-hidden flex">
