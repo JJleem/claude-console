@@ -5,7 +5,7 @@ import path from "path";
 
 const dbPath = path.resolve(process.cwd(), "db/console.db");
 
-const g = global as unknown as { _sqlite?: Database.Database };
+const g = global as unknown as { _sqlite?: Database.Database; _ftsDone?: boolean };
 if (!g._sqlite) {
   g._sqlite = new Database(dbPath);
   g._sqlite.pragma("journal_mode = WAL");
@@ -35,6 +35,12 @@ if (!g._sqlite) {
       VALUES (new.rowid, new.id, new.user_prompt, new.system_prompt, new.response);
     END;
   `);
+
+  // 기존 데이터 FTS 인덱스 동기화 (최초 1회)
+  if (!g._ftsDone) {
+    g._sqlite.exec(`INSERT INTO runs_fts(runs_fts) VALUES('rebuild')`);
+    g._ftsDone = true;
+  }
 }
 
 export const sqlite = g._sqlite;
