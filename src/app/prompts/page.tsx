@@ -7,13 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Save, GitBranch, Clock, FileText, AlertCircle } from "lucide-react";
+import { Save, GitBranch, Clock, FileText, AlertCircle, AtSign, ChevronRight } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import type { PromptVersion } from "@/lib/db/schema";
 
-// 대략적인 토큰 수 계산 (4자 = 1토큰)
 function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
+}
+
+// content에서 @filename 패턴 추출
+function extractAtRefs(text: string): string[] {
+  const matches = text.match(/@[\w./\\-]+\.\w+/g) ?? [];
+  return [...new Set(matches)];
 }
 
 export default function PromptsPage() {
@@ -27,6 +32,34 @@ export default function PromptsPage() {
 
   const isDirty = content !== savedContent;
   const tokenCount = estimateTokens(content);
+  const atRefs = extractAtRefs(content);
+
+  // @파일명 클릭 → 해당 파일 로드
+  const [fileStack, setFileStack] = useState<{ label: string; content: string }[]>([]);
+
+  async function handleAtRefClick(ref: string) {
+    if (!selectedProject) return;
+    const filename = ref.replace(/^@/, "");
+    const filePath = `${selectedProject.path}/${filename}`;
+    const res = await fetch(`/api/prompts/file?path=${encodeURIComponent(filePath)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setFileStack((prev) => [...prev, { label: ref, content: data.content }]);
+    setContent(data.content);
+    setSavedContent(data.content);
+  }
+
+  function handleBackToMain() {
+    setFileStack([]);
+    fetchContent();
+  }
+
+  function handleBackToFile(idx: number) {
+    const target = fileStack[idx];
+    setFileStack((prev) => prev.slice(0, idx + 1));
+    setContent(target.content);
+    setSavedContent(target.content);
+  }
 
   const fetchContent = useCallback(async () => {
     if (!selectedProject) return;
@@ -157,6 +190,42 @@ export default function PromptsPage() {
             <Button size="sm" variant="ghost" onClick={() => setShowVersionSave(false)}>
               취소
             </Button>
+          </div>
+        )}
+
+        {/* Breadcrumb for @ref navigation */}
+        {fileStack.length > 0 && (
+          <div className="px-5 py-1.5 border-b border-border bg-accent/20 flex items-center gap-1 shrink-0 flex-wrap">
+            <button onClick={handleBackToMain} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              CLAUDE.md
+            </button>
+            {fileStack.map((f, i) => (
+              <span key={i} className="flex items-center gap-1">
+                <ChevronRight size={11} className="text-muted-foreground/50" />
+                <button
+                  onClick={() => i < fileStack.length - 1 && handleBackToFile(i)}
+                  className={`text-xs transition-colors ${i === fileStack.length - 1 ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {f.label}
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* @refs bar */}
+        {atRefs.length > 0 && (
+          <div className="px-5 py-1.5 border-b border-border flex items-center gap-2 shrink-0 flex-wrap">
+            <AtSign size={11} className="text-muted-foreground/50 shrink-0" />
+            {atRefs.map((ref) => (
+              <button
+                key={ref}
+                onClick={() => handleAtRefClick(ref)}
+                className="text-xs font-mono text-primary hover:text-primary/80 hover:underline transition-colors"
+              >
+                {ref}
+              </button>
+            ))}
           </div>
         )}
 
