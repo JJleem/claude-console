@@ -68,9 +68,36 @@ export const hookEvents = sqliteTable("hook_events", {
   sessionId: text("session_id"),
 });
 
+export const harnesses = sqliteTable("harnesses", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
+  name: text("name").notNull(),
+  model: text("model").notNull().default("claude-sonnet-4-6"),
+  systemA: text("system_a").notNull().default(""),
+  systemB: text("system_b").notNull().default(""),
+  description: text("description").default(""),
+});
+
+export const harnessRuns = sqliteTable("harness_runs", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  createdAt: text("created_at").default(sql`(datetime('now'))`).notNull(),
+  harnessId: text("harness_id").notNull(),
+  userMessage: text("user_message").notNull(),
+  responseA: text("response_a").notNull(),
+  responseB: text("response_b").notNull(),
+  tokensA: integer("tokens_a").notNull().default(0),
+  tokensB: integer("tokens_b").notNull().default(0),
+  msA: integer("ms_a").notNull().default(0),
+  msB: integer("ms_b").notNull().default(0),
+  winner: text("winner").default(""),       // "A" | "B" | "tie" | ""
+  verdict: text("verdict").default(""),     // AI judge 설명
+});
+
 export type Project = typeof projects.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type Evaluation = typeof evaluations.$inferSelect;
 export type HookEvent = typeof hookEvents.$inferSelect;
+export type Harness = typeof harnesses.$inferSelect;
+export type HarnessRun = typeof harnessRuns.$inferSelect;
