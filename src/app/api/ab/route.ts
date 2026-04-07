@@ -55,15 +55,19 @@ export async function POST(req: NextRequest) {
         metadata: JSON.stringify({ source: "ab-test", slot }),
       });
 
-      // live monitor push
-      pushEvent({
-        id: randomUUID(),
-        event: "ABTest",
-        tool: `Slot ${slot} · ${resolvedModel}`,
-        input: `${system?.trim() ? `[System] ${system.trim().slice(0, 100)}\n` : ""}${userMessage.slice(0, 200)}`,
-        output: `${response.slice(0, 300)} | in:${inputTokens} out:${outputTokens} ${durationMs}ms $${costUsd.toFixed(4)}`,
-        timestamp: Date.now(),
-      });
+      // live monitor push (non-critical — ignore errors)
+      try {
+        pushEvent({
+          id: randomUUID(),
+          event: "ABTest",
+          tool: `Slot ${slot} · ${resolvedModel}`,
+          input: `${system?.trim() ? `[System] ${system.trim().slice(0, 100)}\n` : ""}${userMessage.slice(0, 200)}`,
+          output: `${response.slice(0, 300)} | in:${inputTokens} out:${outputTokens} ${durationMs}ms $${costUsd.toFixed(4)}`,
+          timestamp: Date.now(),
+        });
+      } catch {
+        // SSE stream may be closed; don't fail the A/B call
+      }
 
       return { response, inputTokens, outputTokens, durationMs, costUsd };
     };
