@@ -66,6 +66,7 @@ export default function EvalPage() {
   const [progress, setProgress] = useState("");
   const [loading, setLoading] = useState(false);
   const [limit, setLimit] = useState(5);
+  const [model, setModel] = useState("claude-sonnet-4-6");
 
   // 직접 선택 모드
   const [pickMode, setPickMode] = useState(false);
@@ -110,8 +111,8 @@ export default function EvalPage() {
 
     try {
       const body = pickMode && checkedIds.size > 0
-        ? { runIds: [...checkedIds] }
-        : { limit };
+        ? { runIds: [...checkedIds], model }
+        : { limit, model };
 
       const res = await fetch("/api/eval/stream", {
         method: "POST",
@@ -278,6 +279,25 @@ export default function EvalPage() {
 
         {/* Controls */}
         <div className="p-4 border-b border-border space-y-3">
+          {/* 모델 선택 */}
+          <div className="flex gap-1">
+            {[
+              { id: "claude-haiku-4-5-20251001", label: "Haiku" },
+              { id: "claude-sonnet-4-6",         label: "Sonnet" },
+              { id: "claude-opus-4-6",           label: "Opus" },
+            ].map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setModel(m.id)}
+                className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+                  model === m.id ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
           {/* 모드 전환 */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">채점할 runs</span>

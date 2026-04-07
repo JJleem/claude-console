@@ -43,7 +43,7 @@ get_runs 도구로 runs를 가져온 뒤, 각 run마다 반드시 submit_evaluat
 모든 runs를 채점한 뒤 전체 요약을 한국어로 작성해라.`;
 
 export async function POST(req: NextRequest) {
-  const { limit = 5, runIds }: { limit?: number; runIds?: string[] } = await req.json();
+  const { limit = 5, runIds, model = "claude-sonnet-4-6" }: { limit?: number; runIds?: string[]; model?: string } = await req.json();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         while (true) {
           // 매 턴 스트리밍으로 호출 — 텍스트 델타 실시간 전송
           const msgStream = anthropic.messages.stream({
-            model: "claude-sonnet-4-6",
+            model,
             max_tokens: 4096,
             system: SYSTEM,
             tools: evalTools,
@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
                   runId, relevance, quality, accuracy,
                   totalScore: (relevance + quality + accuracy) / 3,
                   feedback,
-                  judgeModel: "claude-sonnet-4-6",
+                  judgeModel: model,
                 });
 
                 toolResults.push({
