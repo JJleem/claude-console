@@ -257,7 +257,7 @@ export default function MemoryPage() {
             const memories = scope === "project" ? projectMemory : globalMemory;
             const dirLabel = scope === "global"
               ? "~/.claude/memory/"
-              : selectedProject ? `~/.claude/projects/${selectedProject.path.replace(/[/_]/g, "-")}/memory/` : ".claude/memory/";
+              : selectedProject ? `~/.claude/projects/${selectedProject.path}/memory/` : "~/.claude/projects/{project}/memory/";
 
             return (
               <TabsContent key={scope} value={scope} className="flex-1 overflow-hidden mt-0">
