@@ -10,7 +10,21 @@
 
 Claude Console은 Claude Code의 모든 설정을 한 곳에서 관리하고, LLM 호출을 추적하며, 프롬프트를 버전 관리하고, Eval을 실행하는 **개발자 전용 로컬 대시보드**입니다.
 
+
 `npm run dev` 한 번으로 실행되는 로컬 전용 툴입니다. 배포 없음.
+
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/cdfc3660-df18-478d-b88f-0ebf47fd84a1" />
+<br/>
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/809938fd-10f3-46f5-9f58-dd8ac703e86d" />
+<br/>
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/d75f6906-4d11-4151-9d68-8ca7ed47ef87" />
+<br/>
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/e30b2bac-b80a-4884-8966-40a97f384437" />
+<br/>
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/84cad94c-7b21-475d-90e2-7bae2a51a1a4" />
+<br/>
+<img width="1470" height="956" alt="image" src="https://github.com/user-attachments/assets/7165210d-fe77-431b-86cb-0dc0af8eae65" />
+
 
 ---
 
