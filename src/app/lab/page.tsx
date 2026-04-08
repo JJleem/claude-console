@@ -651,9 +651,9 @@ function ChainExperiment() {
           {steps.map((step, i) => (
             <div key={i}>
               <div className="rounded-md border border-border overflow-hidden">
-                <button
+                <div
                   onClick={() => toggleStep(i)}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/50 transition-colors cursor-pointer"
                 >
                   {expandedSteps.has(i) ? <ChevronDown size={12} className="text-muted-foreground shrink-0" /> : <ChevronRight size={12} className="text-muted-foreground shrink-0" />}
                   <span className="text-xs font-medium text-foreground flex-1">{step.name || `단계 ${i + 1}`}</span>
@@ -665,7 +665,7 @@ function ChainExperiment() {
                   >
                     <Trash2 size={11} />
                   </Button>
-                </button>
+                </div>
                 {expandedSteps.has(i) && (
                   <div className="border-t border-border px-3 py-3 space-y-2.5 bg-secondary/20">
                     <input
@@ -909,7 +909,7 @@ export default function LabPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
         <div className="w-48 shrink-0 border-r border-border flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1">
+          <ScrollArea className="h-[calc(100vh-110px)]">
             <div className="p-2 space-y-0.5">
               {EXPERIMENTS.map((exp) => {
                 const Icon = exp.icon;
@@ -947,7 +947,7 @@ export default function LabPage() {
             <span className="text-sm font-medium text-foreground">{current.label}</span>
             <span className="text-xs text-muted-foreground">{current.description}</span>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="h-[calc(100vh-110px)]">
             <div className="p-5">
               {selected === "rag" && <RagExperiment />}
               {selected === "tools" && <ToolUseExperiment />}
