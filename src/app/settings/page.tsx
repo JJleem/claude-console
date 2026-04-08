@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   Circle,
   FolderSearch,
+  KeyRound,
+  AlertCircle,
 } from "lucide-react";
 
 type ScannedProject = {
@@ -30,6 +32,7 @@ export default function SettingsPage() {
   const [projectPath, setProjectPath] = useState("");
   const [adding, setAdding] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ set: boolean; masked?: string } | null>(null);
 
   async function fetchProjects() {
     const res = await fetch("/api/settings/projects");
@@ -40,6 +43,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchProjects();
+    fetch("/api/settings/api-key").then(r => r.json()).then(setApiKeyStatus);
   }, []);
 
   async function handleAdd() {
@@ -91,6 +95,44 @@ export default function SettingsPage() {
           프로젝트를 등록하면 CLAUDE.md, Hooks, Memory를 관리할 수 있습니다
         </p>
       </div>
+
+      {/* API Key status */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <KeyRound size={14} className="text-muted-foreground" />
+          <h2 className="text-sm font-medium text-foreground">Anthropic API Key</h2>
+        </div>
+        {apiKeyStatus === null ? (
+          <Card><CardContent className="py-3 px-4 text-xs text-muted-foreground">확인 중...</CardContent></Card>
+        ) : apiKeyStatus.set ? (
+          <Card className="border-green-500/30 bg-green-500/5">
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+                <span className="text-sm text-foreground">설정됨</span>
+                <code className="ml-auto text-xs text-muted-foreground font-mono">{apiKeyStatus.masked}</code>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="py-4 px-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-amber-500 shrink-0" />
+                <span className="text-sm text-foreground">API 키가 설정되지 않았습니다</span>
+              </div>
+              <p className="text-xs text-muted-foreground pl-5">
+                프로젝트 루트의 <code className="font-mono bg-secondary px-1 py-0.5 rounded">.env</code> 파일에 아래 내용을 추가하고 서버를 재시작하세요.
+              </p>
+              <pre className="ml-5 text-xs font-mono bg-secondary text-foreground px-3 py-2 rounded-md select-all">
+                ANTHROPIC_API_KEY=sk-ant-...
+              </pre>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Separator />
 
       {/* Registered Projects */}
       <div className="space-y-3">
