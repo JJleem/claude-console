@@ -19,6 +19,7 @@ import {
   Moon,
   GitCompare,
   Layers,
+  ShieldOff,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -32,6 +33,7 @@ const navItems = [
   { href: "/skills",  icon: Zap,             label: "Skills" },
   { href: "/memory",  icon: Brain,           label: "Memory" },
   { href: "/context", icon: Layers,          label: "Context" },
+  { href: "/ignore",  icon: ShieldOff,       label: "Ignore" },
   { href: "/settings",icon: Settings,        label: "Settings" },
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
   { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
