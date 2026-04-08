@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useProject } from "@/lib/project-context";
 import { ShieldOff, Plus, Save, RotateCcw } from "lucide-react";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
+import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 
 // Recommendations per project type
 const RECOMMENDATIONS: Record<string, { label: string; patterns: string[] }> = {
@@ -102,7 +103,8 @@ export default function IgnorePage() {
       <div className="px-5 py-3 border-b border-border flex items-center gap-3 shrink-0">
         <ShieldOff size={14} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium text-foreground">.claudeignore</span>
-        <span className="text-xs text-muted-foreground font-mono truncate">
+        <ProjectSwitcher />
+        <span className="text-xs text-muted-foreground font-mono truncate hidden sm:block">
           {selectedProject.path}/.claudeignore
         </span>
         <div className="ml-auto flex items-center gap-2">
