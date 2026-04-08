@@ -126,41 +126,80 @@ function RagExperiment() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">문서 붙여넣기</label>
-          <textarea
-            value={document}
-            onChange={(e) => setDocument(e.target.value)}
-            rows={8}
-            className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed font-mono"
-          />
+    <div className="space-y-6">
+
+      {/* ── 개념 설명 ── */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">RAG란?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-foreground">Retrieval-Augmented Generation</strong> — LLM이 학습 데이터에 없는 정보도 정확하게 답할 수 있도록,
+            외부 문서에서 관련 내용을 검색(Retrieve)해서 프롬프트에 주입(Augment)한 뒤 응답을 생성(Generate)하는 기법입니다.
+          </p>
         </div>
+        <div className="flex gap-2 text-xs text-muted-foreground items-start">
+          <span className="shrink-0 font-mono text-primary">①</span>
+          <span>문서를 일정 크기의 <strong className="text-foreground">청크(chunk)</strong>로 분할</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">②</span>
+          <span>질문과 각 청크 사이의 <strong className="text-foreground">유사도 점수</strong> 계산 (여기선 TF-IDF)</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">③</span>
+          <span>상위 청크를 컨텍스트로 LLM에 주입 → 응답 생성</span>
+        </div>
+        <div className="border-t border-border pt-3">
+          <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>청크 크기가 검색 품질에 미치는 영향 (크기를 조절해보세요)</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>TF-IDF 유사도 점수가 어떻게 관련 청크를 찾아내는지</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>컨텍스트 주입 전후 LLM 응답의 차이</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>RAG의 한계 — 임베딩 없이 키워드 기반 검색의 정확도 한계</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* ── 문서 입력 ── */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-muted-foreground">문서 붙여넣기</label>
+          <span className="text-xs text-muted-foreground">{document.split(/\s+/).filter(Boolean).length}단어</span>
+        </div>
+        <textarea
+          value={document}
+          onChange={(e) => setDocument(e.target.value)}
+          rows={12}
+          placeholder="분석할 문서를 여기에 붙여넣으세요. 길수록 RAG의 효과가 더 잘 보입니다."
+          className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed font-mono"
+        />
+      </div>
+
+      {/* ── 질문 + 설정 ── */}
+      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">질문</label>
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             rows={3}
-            className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
+            placeholder="문서에 대한 질문을 입력하세요"
+            className="w-full text-xs bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none leading-relaxed"
           />
-          <div className="space-y-2 pt-2">
+        </div>
+        <div className="space-y-3">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">청크 크기</label>
-              <span className="text-xs text-muted-foreground font-mono">{chunkSize}단어</span>
+              <span className="text-xs font-mono text-primary">{chunkSize}단어</span>
             </div>
             <input
-              type="range"
-              value={chunkSize}
+              type="range" value={chunkSize}
               onChange={(e) => setChunkSize(Number(e.target.value))}
-              min={50}
-              max={300}
-              step={10}
+              min={20} max={200} step={10}
               className="w-full accent-primary"
             />
+            <p className="text-xs text-muted-foreground">작을수록 정밀, 클수록 문맥 보존</p>
           </div>
-          <Button onClick={run} disabled={running} className="w-full mt-2">
+          <Button onClick={run} disabled={running} className="w-full">
             {running ? <Loader2 size={13} className="mr-1.5 animate-spin" /> : <Play size={13} className="mr-1.5" />}
             {running ? "실행 중..." : "실행"}
           </Button>
@@ -168,17 +207,22 @@ function RagExperiment() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
-          {error}
-        </div>
+        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">{error}</div>
       )}
 
+      {/* ── 청크 분석 결과 ── */}
       {chunks.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            청크 분석 <span className="text-foreground">({chunks.length}개)</span>
-          </p>
-          <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto pr-1">
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-medium text-foreground">청크 분석</p>
+            <span className="text-xs text-muted-foreground">{chunks.length}개 생성 · 상위 3개가 컨텍스트로 주입됨</span>
+            <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/60 inline-block" />높은 관련도</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500/60 inline-block" />보통</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-border inline-block" />낮음</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto pr-1">
             {[...chunks].sort((a, b) => b.score - a.score).map((chunk) => (
               <div
                 key={chunk.index}
@@ -188,7 +232,10 @@ function RagExperiment() {
                 )}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-muted-foreground font-mono">청크 #{chunk.index + 1}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground font-mono">청크 #{chunk.index + 1}</span>
+                    {top3Indices.has(chunk.index) && <span className="text-xs text-primary">컨텍스트 주입됨</span>}
+                  </div>
                   <span className={cn("text-xs px-1.5 py-0.5 rounded border font-mono", scoreColor(chunk.score))}>
                     {chunk.score.toFixed(3)}
                   </span>
@@ -200,9 +247,10 @@ function RagExperiment() {
         </div>
       )}
 
+      {/* ── 생성된 응답 ── */}
       {response && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">생성된 응답</p>
+          <p className="text-xs font-medium text-foreground">생성된 응답 <span className="text-muted-foreground font-normal">(주입된 컨텍스트 기반)</span></p>
           <div className="rounded-md border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
             {response}
             {running && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />}
