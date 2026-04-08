@@ -20,6 +20,7 @@ import {
   GitCompare,
   Layers,
   ShieldOff,
+  Wifi,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -34,6 +35,7 @@ const navItems = [
   { href: "/memory",  icon: Brain,           label: "Memory" },
   { href: "/context", icon: Layers,          label: "Context" },
   { href: "/ignore",  icon: ShieldOff,       label: "Ignore" },
+  { href: "/mcp",     icon: Wifi,            label: "MCP" },
   { href: "/settings",icon: Settings,        label: "Settings" },
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
   { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
