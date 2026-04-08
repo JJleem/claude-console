@@ -2,8 +2,10 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 import path from "path";
+import fs from "fs";
 
 const dbPath = path.resolve(process.cwd(), "db/console.db");
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
 const g = global as unknown as { _sqlite?: Database.Database; _ftsDone?: boolean };
 if (!g._sqlite) {
