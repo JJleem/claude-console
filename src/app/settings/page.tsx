@@ -1,39 +1,123 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useProject } from "@/lib/project-context";
 import type { Project } from "@/lib/db/schema";
 import {
-  FolderOpen,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Circle,
-  FolderSearch,
-  KeyRound,
-  AlertCircle,
+  FolderOpen, FolderSearch, Plus, Trash2, CheckCircle2, Circle,
+  KeyRound, AlertCircle, ChevronRight, Home, ArrowLeft,
 } from "lucide-react";
 
-type ScannedProject = {
-  key: string;
-  detectedPath: string | null;
-};
+type ScannedProject = { key: string; detectedPath: string | null };
+type FsEntry = { name: string; path: string; hasClaude: boolean };
+type FsData = { current: string; parent: string | null; home: string; dirs: FsEntry[] };
 
+// ─────────────────────────── Folder Browser ───────────────────────────
+function FolderBrowser({ onSelect }: { onSelect: (p: string) => void }) {
+  const [data, setData] = useState<FsData | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const browse = useCallback(async (p?: string) => {
+    setLoading(true);
+    const url = p ? `/api/fs?path=${encodeURIComponent(p)}` : "/api/fs";
+    const res = await fetch(url);
+    const json = await res.json();
+    if (!json.error) setData(json);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { browse(); }, [browse]);
+
+  if (!data) return <div className="py-8 text-center text-xs text-muted-foreground">로딩 중...</div>;
+
+  const parts = data.current.split(/[\\/]/).filter(Boolean);
+
+  return (
+    <div className="space-y-3">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1 flex-wrap text-xs text-muted-foreground bg-secondary rounded-md px-3 py-2">
+        <button onClick={() => browse(data.home)} className="hover:text-foreground transition-colors shrink-0">
+          <Home size={12} />
+        </button>
+        {parts.map((part, i) => {
+          const partPath = "/" + parts.slice(0, i + 1).join("/");
+          return (
+            <span key={i} className="flex items-center gap-1">
+              <ChevronRight size={10} className="text-muted-foreground/50" />
+              <button onClick={() => browse(partPath)} className="hover:text-foreground transition-colors font-mono">
+                {part}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Directory list */}
+      <ScrollArea className="h-64 border border-border rounded-md">
+        <div className="p-1">
+          {data.parent && (
+            <button
+              onClick={() => browse(data.parent!)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-accent/50 transition-colors text-left"
+            >
+              <ArrowLeft size={13} className="text-muted-foreground shrink-0" />
+              <span className="text-xs text-muted-foreground">..</span>
+            </button>
+          )}
+          {loading && (
+            <div className="px-3 py-4 text-xs text-center text-muted-foreground">로딩 중...</div>
+          )}
+          {!loading && data.dirs.length === 0 && (
+            <div className="px-3 py-4 text-xs text-center text-muted-foreground">하위 폴더가 없습니다</div>
+          )}
+          {!loading && data.dirs.map((d) => (
+            <button
+              key={d.path}
+              onClick={() => browse(d.path)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-accent/50 transition-colors text-left group"
+            >
+              <FolderOpen size={13} className={`shrink-0 ${d.hasClaude ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-xs text-foreground flex-1 truncate">{d.name}</span>
+              {d.hasClaude && <Badge variant="secondary" className="text-xs h-4 px-1 shrink-0">Claude</Badge>}
+              <ChevronRight size={11} className="text-muted-foreground/40 shrink-0" />
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
+
+      {/* Current path + select button */}
+      <div className="flex items-center gap-2">
+        <code className="flex-1 text-xs font-mono text-muted-foreground bg-secondary px-3 py-2 rounded-md truncate">
+          {data.current}
+        </code>
+        <Button size="sm" onClick={() => onSelect(data.current)}>
+          이 폴더 선택
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────── Main Page ───────────────────────────
 export default function SettingsPage() {
   const { selectedProject, setSelectedProject } = useProject();
   const [registered, setRegistered] = useState<Project[]>([]);
   const [unregistered, setUnregistered] = useState<ScannedProject[]>([]);
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ set: boolean; masked?: string } | null>(null);
+
+  // Add form state
+  const [showAddForm, setShowAddForm] = useState(false);
   const [name, setName] = useState("");
   const [projectPath, setProjectPath] = useState("");
   const [adding, setAdding] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [apiKeyStatus, setApiKeyStatus] = useState<{ set: boolean; masked?: string } | null>(null);
-  const [manualPaths, setManualPaths] = useState<Record<string, string>>({});
+  const [browserOpen, setBrowserOpen] = useState(false);
+  const [browserTarget, setBrowserTarget] = useState<"form" | string>("form"); // "form" or scanned key
 
   async function fetchProjects() {
     const res = await fetch("/api/settings/projects");
@@ -47,6 +131,27 @@ export default function SettingsPage() {
     fetch("/api/settings/api-key").then(r => r.json()).then(setApiKeyStatus);
   }, []);
 
+  function openBrowser(target: "form" | string) {
+    setBrowserTarget(target);
+    setBrowserOpen(true);
+  }
+
+  function handleBrowserSelect(path: string) {
+    setBrowserOpen(false);
+    if (browserTarget === "form") {
+      setProjectPath(path);
+      if (!name) setName(path.split(/[\\/]/).pop() ?? "");
+    } else {
+      // Quick-add a scanned project with the selected path
+      const autoName = path.split(/[\\/]/).pop() ?? browserTarget;
+      fetch("/api/settings/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: autoName, projectPath: path }),
+      }).then(() => fetchProjects());
+    }
+  }
+
   async function handleAdd() {
     if (!name.trim() || !projectPath.trim()) return;
     setAdding(true);
@@ -56,9 +161,7 @@ export default function SettingsPage() {
       body: JSON.stringify({ name, projectPath }),
     });
     if (res.ok) {
-      setName("");
-      setProjectPath("");
-      setShowAddForm(false);
+      setName(""); setProjectPath(""); setShowAddForm(false);
       await fetchProjects();
     } else {
       const err = await res.json();
@@ -67,13 +170,13 @@ export default function SettingsPage() {
     setAdding(false);
   }
 
-  async function handleQuickAdd(scanned: ScannedProject) {
-    if (!scanned.detectedPath) return;
-    const autoName = scanned.detectedPath.split("/").pop() ?? scanned.key;
+  async function handleQuickAdd(s: ScannedProject) {
+    if (!s.detectedPath) return;
+    const autoName = s.detectedPath.split(/[\\/]/).pop() ?? s.key;
     const res = await fetch("/api/settings/projects", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: autoName, projectPath: scanned.detectedPath }),
+      body: JSON.stringify({ name: autoName, projectPath: s.detectedPath }),
     });
     if (res.ok) await fetchProjects();
   }
@@ -97,7 +200,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* API Key status */}
+      {/* API Key */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <KeyRound size={14} className="text-muted-foreground" />
@@ -125,9 +228,7 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground pl-5">
                 프로젝트 루트의 <code className="font-mono bg-secondary px-1 py-0.5 rounded">.env</code> 파일에 아래 내용을 추가하고 서버를 재시작하세요.
               </p>
-              <pre className="ml-5 text-xs font-mono bg-secondary text-foreground px-3 py-2 rounded-md select-all">
-                ANTHROPIC_API_KEY=sk-ant-...
-              </pre>
+              <pre className="ml-5 text-xs font-mono bg-secondary text-foreground px-3 py-2 rounded-md select-all">ANTHROPIC_API_KEY=sk-ant-...</pre>
             </CardContent>
           </Card>
         )}
@@ -139,13 +240,11 @@ export default function SettingsPage() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-foreground">등록된 프로젝트</h2>
-          <Button size="sm" variant="outline" onClick={() => setShowAddForm(!showAddForm)}>
-            <Plus size={13} className="mr-1" />
-            직접 추가
+          <Button size="sm" variant="outline" onClick={() => { setShowAddForm(!showAddForm); setName(""); setProjectPath(""); }}>
+            <Plus size={13} className="mr-1" />직접 추가
           </Button>
         </div>
 
-        {/* Add Form */}
         {showAddForm && (
           <Card className="border-primary/30">
             <CardContent className="pt-4 space-y-3">
@@ -154,26 +253,29 @@ export default function SettingsPage() {
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="claude-hub"
+                  placeholder="my-project"
                   className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">절대 경로</label>
-                <input
-                  value={projectPath}
-                  onChange={(e) => setProjectPath(e.target.value)}
-                  placeholder="/Users/molt/Desktop/project"
-                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-                />
+                <div className="flex gap-2">
+                  <input
+                    value={projectPath}
+                    onChange={(e) => setProjectPath(e.target.value)}
+                    placeholder="/Users/yourname/projects/my-project"
+                    className="flex-1 text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                  />
+                  <Button size="sm" variant="outline" onClick={() => openBrowser("form")}>
+                    <FolderSearch size={13} />
+                  </Button>
+                </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleAdd} disabled={adding}>
+                <Button size="sm" onClick={handleAdd} disabled={adding || !name.trim() || !projectPath.trim()}>
                   {adding ? "추가 중..." : "추가"}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setShowAddForm(false)}>
-                  취소
-                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowAddForm(false)}>취소</Button>
               </div>
             </CardContent>
           </Card>
@@ -192,38 +294,24 @@ export default function SettingsPage() {
               return (
                 <Card
                   key={project.id}
-                  className={`cursor-pointer transition-colors hover:border-primary/50 ${
-                    isSelected ? "border-primary bg-primary/5" : ""
-                  }`}
+                  className={`cursor-pointer transition-colors hover:border-primary/50 ${isSelected ? "border-primary bg-primary/5" : ""}`}
                   onClick={() => setSelectedProject(isSelected ? null : project)}
                 >
                   <CardContent className="py-3 px-4">
                     <div className="flex items-center gap-3">
-                      {isSelected ? (
-                        <CheckCircle2 size={15} className="text-primary shrink-0" />
-                      ) : (
-                        <Circle size={15} className="text-muted-foreground shrink-0" />
-                      )}
+                      {isSelected
+                        ? <CheckCircle2 size={15} className="text-primary shrink-0" />
+                        : <Circle size={15} className="text-muted-foreground shrink-0" />}
                       <FolderOpen size={15} className="text-muted-foreground shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{project.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono truncate">
-                          {project.path}
-                        </p>
+                        <p className="text-xs text-muted-foreground font-mono truncate">{project.path}</p>
                       </div>
-                      {isSelected && (
-                        <Badge variant="default" className="text-xs shrink-0">
-                          활성
-                        </Badge>
-                      )}
+                      {isSelected && <Badge variant="default" className="text-xs shrink-0">활성</Badge>}
                       <Button
-                        size="sm"
-                        variant="ghost"
+                        size="sm" variant="ghost"
                         className="shrink-0 h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(project.id);
-                        }}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }}
                       >
                         <Trash2 size={13} />
                       </Button>
@@ -238,75 +326,51 @@ export default function SettingsPage() {
 
       <Separator />
 
-      {/* Auto-detected (unregistered) */}
+      {/* Auto-detected */}
       {unregistered.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <FolderSearch size={14} className="text-muted-foreground" />
-            <h2 className="text-sm font-medium text-foreground">
-              자동 감지된 프로젝트
-            </h2>
-            <Badge variant="secondary" className="text-xs">
-              {unregistered.length}개
-            </Badge>
+            <h2 className="text-sm font-medium text-foreground">자동 감지된 프로젝트</h2>
+            <Badge variant="secondary" className="text-xs">{unregistered.length}개</Badge>
           </div>
-          <p className="text-xs text-muted-foreground">
-            ~/.claude/projects/ 에서 감지됨. 클릭해서 빠르게 등록하세요.
-          </p>
-          <ScrollArea className="h-64">
-            <div className="space-y-1.5 pr-2">
-              {unregistered.map((s) => (
-                <div
-                  key={s.key}
-                  className="rounded-md border border-border px-3 py-2 space-y-1.5"
-                >
-                  <div className="flex items-center gap-3">
-                    <FolderOpen size={13} className={`shrink-0 ${s.detectedPath ? "text-muted-foreground" : "text-amber-500"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">
-                        {s.detectedPath?.split("/").pop() ?? s.key}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono truncate">
-                        {s.detectedPath ?? "경로를 자동으로 찾지 못했습니다"}
-                      </p>
-                    </div>
-                    {s.detectedPath ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 h-7 text-xs"
-                        onClick={() => handleQuickAdd(s)}
-                      >
-                        <Plus size={11} className="mr-1" />
-                        등록
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 h-7 text-xs"
-                        disabled={!manualPaths[s.key]?.trim()}
-                        onClick={() => handleQuickAdd({ key: s.key, detectedPath: manualPaths[s.key] })}
-                      >
-                        <Plus size={11} className="mr-1" />
-                        등록
-                      </Button>
-                    )}
-                  </div>
-                  {!s.detectedPath && (
-                    <input
-                      value={manualPaths[s.key] ?? ""}
-                      onChange={(e) => setManualPaths((prev) => ({ ...prev, [s.key]: e.target.value }))}
-                      placeholder="/Users/yourname/path/to/project"
-                      className="w-full text-xs bg-secondary border border-border rounded px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
-                    />
-                  )}
+          <p className="text-xs text-muted-foreground">~/.claude/projects/ 에서 감지됨.</p>
+          <div className="space-y-1.5">
+            {unregistered.map((s) => (
+              <div key={s.key} className="flex items-center gap-3 px-3 py-2.5 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-colors">
+                <FolderOpen size={13} className={`shrink-0 ${s.detectedPath ? "text-muted-foreground" : "text-amber-500"}`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-foreground truncate">
+                    {s.detectedPath?.split(/[\\/]/).pop() ?? s.key}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono truncate">
+                    {s.detectedPath ?? "경로를 자동으로 찾지 못했습니다"}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
+                {s.detectedPath ? (
+                  <Button size="sm" variant="outline" className="shrink-0 h-7 text-xs" onClick={() => handleQuickAdd(s)}>
+                    <Plus size={11} className="mr-1" />등록
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="outline" className="shrink-0 h-7 text-xs" onClick={() => openBrowser(s.key)}>
+                    <FolderSearch size={11} className="mr-1" />경로 찾기
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Folder Browser Dialog */}
+      <Dialog open={browserOpen} onOpenChange={setBrowserOpen}>
+        <DialogContent className="max-w-2xl w-[90vw]">
+          <DialogHeader>
+            <DialogTitle className="text-sm">폴더 선택</DialogTitle>
+          </DialogHeader>
+          <FolderBrowser onSelect={handleBrowserSelect} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

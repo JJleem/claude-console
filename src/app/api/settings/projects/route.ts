@@ -11,37 +11,48 @@ export function pathToProjectKey(absolutePath: string): string {
   return absolutePath.replace(/[/_]/g, "-");
 }
 
-// key → 실제 경로 역탐색 (DFS로 파일시스템 확인)
+// key → 실제 경로 역탐색
+// 전략: 홈 디렉토리를 앵커로 먼저 시도 → 실패하면 루트에서 DFS
 function resolveKeyToPath(key: string): string | null {
   const tokens = key.replace(/^-/, "").split("-").filter(Boolean);
 
-  function dfs(currentPath: string, idx: number): string | null {
-    if (idx === tokens.length) return currentPath;
+  function dfs(currentPath: string, idx: number, maxDepth: number): string | null {
+    if (idx === tokens.length) return fs.existsSync(currentPath) ? currentPath : null;
+    if (maxDepth <= 0) return null;
 
-    // 남은 토큰을 1개~N개씩 묶어서 폴더 이름 후보 생성
     for (let n = 1; idx + n <= tokens.length; n++) {
       const slice = tokens.slice(idx, idx + n);
       const candidates = new Set([
-        slice.join("-"),  // 하이픈 연결 (literal dash)
-        slice.join("_"),  // 언더스코어 연결 (molt_repository 등)
+        slice.join("-"),
+        slice.join("_"),
+        slice.join(" "),
       ]);
-
       for (const candidate of candidates) {
         const tryPath = path.join(currentPath, candidate);
         try {
           if (fs.statSync(tryPath).isDirectory()) {
-            const result = dfs(tryPath, idx + n);
+            const result = dfs(tryPath, idx + n, maxDepth - 1);
             if (result !== null) return result;
           }
-        } catch {
-          // 존재하지 않는 경로 — skip
-        }
+        } catch { /* skip */ }
       }
     }
     return null;
   }
 
-  return dfs("/", 0);
+  // 1) 홈 디렉토리를 앵커로 시도
+  const home = os.homedir();
+  const homeKey = home.replace(/[/_\\ ]/g, "-").replace(/^-/, "");
+  const homeTokens = homeKey.split("-").filter(Boolean);
+
+  if (tokens.slice(0, homeTokens.length).join("-") === homeTokens.join("-")) {
+    const result = dfs(home, homeTokens.length, tokens.length - homeTokens.length + 2);
+    if (result) return result;
+  }
+
+  // 2) 루트에서 DFS (깊이 제한)
+  const sep = path.sep === "\\" ? "\\" : "/";
+  return dfs(sep, 0, tokens.length + 2);
 }
 
 // ~/.claude/projects/ 스캔 → 실제 경로 역탐색
