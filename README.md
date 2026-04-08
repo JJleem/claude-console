@@ -59,10 +59,7 @@ npm install
 # 3. 환경변수 설정
 echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 
-# 4. DB 초기화
-npx drizzle-kit push
-
-# 5. 실행
+# 4. 실행 (DB는 자동 생성됩니다)
 npm run dev
 ```
 
