@@ -21,6 +21,7 @@ import {
   Layers,
   ShieldOff,
   Wifi,
+  TestTube,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
   { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
   { href: "/live",    icon: Radio,           label: "Live", live: true },
+  { href: "/lab",     icon: TestTube,        label: "AI Lab" },
 ];
 
 export function Sidebar() {
