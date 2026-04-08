@@ -76,13 +76,6 @@ function ServerCard({
                 {server.command}{server.args?.length ? " " + server.args.join(" ") : ""}
               </p>
             )}
-            {server.env && Object.keys(server.env).length > 0 && (
-              <div className="flex gap-1 flex-wrap">
-                {Object.keys(server.env).map((k) => (
-                  <Badge key={k} variant="secondary" className="text-xs font-mono px-1.5 py-0">{k}</Badge>
-                ))}
-              </div>
-            )}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={onEdit}>
@@ -100,7 +93,7 @@ function ServerCard({
 
 const EMPTY_FORM = {
   name: "", type: "stdio" as "stdio" | "sse",
-  command: "", args: "", env: "", url: "",
+  command: "", args: "", url: "",
 };
 
 function McpList({
@@ -147,7 +140,6 @@ function McpList({
       type: server.type,
       command: server.command ?? "",
       args: server.args?.join(" ") ?? "",
-      env: server.env ? Object.entries(server.env).map(([k, v]) => `${k}=${v}`).join("\n") : "",
       url: server.url ?? "",
     });
     setDialogOpen(true);
@@ -166,12 +158,6 @@ function McpList({
       });
     }
 
-    const envObj: Record<string, string> = {};
-    form.env.split("\n").forEach((line) => {
-      const [k, ...rest] = line.split("=");
-      if (k?.trim()) envObj[k.trim()] = rest.join("=").trim();
-    });
-
     await fetch("/api/mcp", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -181,7 +167,6 @@ function McpList({
           type: form.type,
           command: form.type === "stdio" ? form.command.trim() : undefined,
           args: form.type === "stdio" && form.args.trim() ? form.args.trim().split(/\s+/) : undefined,
-          env: form.type === "stdio" && Object.keys(envObj).length ? envObj : undefined,
           url: form.type === "sse" ? form.url.trim() : undefined,
         },
       }),
@@ -296,15 +281,13 @@ function McpList({
                     className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Env <span className="font-normal opacity-60">(KEY=VALUE, 줄바꿈 구분)</span></label>
-                  <textarea
-                    value={form.env}
-                    onChange={(e) => setForm((f) => ({ ...f, env: e.target.value }))}
-                    rows={3}
-                    placeholder={"API_KEY=your-key\nBASE_URL=https://..."}
-                    className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono resize-none"
-                  />
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400">
+                  <AlertCircle size={12} className="shrink-0 mt-0.5" />
+                  <span>
+                    API 키 등 민감한 값은 여기에 입력하지 마세요.{" "}
+                    <code className="font-mono">~/.zshrc</code> 또는 <code className="font-mono">~/.bashrc</code>에
+                    OS 환경변수로 설정하면 MCP 서버가 자동으로 상속받습니다.
+                  </span>
                 </div>
               </>
             ) : (
