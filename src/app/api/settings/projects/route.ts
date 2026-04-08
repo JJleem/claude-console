@@ -66,8 +66,7 @@ export async function GET() {
   // 등록된 프로젝트의 key 계산
   const registeredKeys = new Set(registered.map((p) => pathToProjectKey(p.path)));
   const unregistered = scanned
-    .filter((s) => !registeredKeys.has(s.key))
-    .filter((s) => s.detectedPath !== null); // 경로 못 찾은 건 숨김
+    .filter((s) => !registeredKeys.has(s.key));
 
   return NextResponse.json({ registered, unregistered });
 }

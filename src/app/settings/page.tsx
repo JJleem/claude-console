@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const [adding, setAdding] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<{ set: boolean; masked?: string } | null>(null);
+  const [manualPaths, setManualPaths] = useState<Record<string, string>>({});
 
   async function fetchProjects() {
     const res = await fetch("/api/settings/projects");
@@ -257,26 +258,49 @@ export default function SettingsPage() {
               {unregistered.map((s) => (
                 <div
                   key={s.key}
-                  className="flex items-center gap-3 px-3 py-2 rounded-md border border-border hover:border-primary/40 hover:bg-accent/30 transition-colors group"
+                  className="rounded-md border border-border px-3 py-2 space-y-1.5"
                 >
-                  <FolderOpen size={13} className="text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">
-                      {s.detectedPath?.split("/").pop() ?? s.key}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-mono truncate">
-                      {s.detectedPath ?? s.key}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <FolderOpen size={13} className={`shrink-0 ${s.detectedPath ? "text-muted-foreground" : "text-amber-500"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-foreground truncate">
+                        {s.detectedPath?.split("/").pop() ?? s.key}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">
+                        {s.detectedPath ?? "경로를 자동으로 찾지 못했습니다"}
+                      </p>
+                    </div>
+                    {s.detectedPath ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 h-7 text-xs"
+                        onClick={() => handleQuickAdd(s)}
+                      >
+                        <Plus size={11} className="mr-1" />
+                        등록
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 h-7 text-xs"
+                        disabled={!manualPaths[s.key]?.trim()}
+                        onClick={() => handleQuickAdd({ key: s.key, detectedPath: manualPaths[s.key] })}
+                      >
+                        <Plus size={11} className="mr-1" />
+                        등록
+                      </Button>
+                    )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="shrink-0 h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => handleQuickAdd(s)}
-                  >
-                    <Plus size={11} className="mr-1" />
-                    등록
-                  </Button>
+                  {!s.detectedPath && (
+                    <input
+                      value={manualPaths[s.key] ?? ""}
+                      onChange={(e) => setManualPaths((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                      placeholder="/Users/yourname/path/to/project"
+                      className="w-full text-xs bg-secondary border border-border rounded px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                    />
+                  )}
                 </div>
               ))}
             </div>
