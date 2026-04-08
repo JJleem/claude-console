@@ -16,7 +16,14 @@ import {
 
 type ScannedProject = { key: string; detectedPath: string | null };
 type FsEntry = { name: string; path: string; hasClaude: boolean };
-type FsData = { current: string; parent: string | null; home: string; dirs: FsEntry[] };
+type FsData = {
+  current: string;
+  parent: string | null;
+  home: string;
+  isWindows: boolean;
+  breadcrumbs: { name: string; path: string }[];
+  dirs: FsEntry[];
+};
 
 // ─────────────────────────── Folder Browser ───────────────────────────
 function FolderBrowser({ onSelect }: { onSelect: (p: string) => void }) {
@@ -36,8 +43,6 @@ function FolderBrowser({ onSelect }: { onSelect: (p: string) => void }) {
 
   if (!data) return <div className="py-8 text-center text-xs text-muted-foreground">로딩 중...</div>;
 
-  const parts = data.current.split(/[\\/]/).filter(Boolean);
-
   return (
     <div className="space-y-3">
       {/* Breadcrumb */}
@@ -45,17 +50,14 @@ function FolderBrowser({ onSelect }: { onSelect: (p: string) => void }) {
         <button onClick={() => browse(data.home)} className="hover:text-foreground transition-colors shrink-0">
           <Home size={12} />
         </button>
-        {parts.map((part, i) => {
-          const partPath = "/" + parts.slice(0, i + 1).join("/");
-          return (
-            <span key={i} className="flex items-center gap-1">
-              <ChevronRight size={10} className="text-muted-foreground/50" />
-              <button onClick={() => browse(partPath)} className="hover:text-foreground transition-colors font-mono">
-                {part}
-              </button>
-            </span>
-          );
-        })}
+        {data.breadcrumbs.map((crumb, i) => (
+          <span key={i} className="flex items-center gap-1">
+            <ChevronRight size={10} className="text-muted-foreground/50" />
+            <button onClick={() => browse(crumb.path)} className="hover:text-foreground transition-colors font-mono">
+              {crumb.name}
+            </button>
+          </span>
+        ))}
       </div>
 
       {/* Directory list */}
@@ -92,14 +94,16 @@ function FolderBrowser({ onSelect }: { onSelect: (p: string) => void }) {
       </ScrollArea>
 
       {/* Current path + select button */}
-      <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs font-mono text-muted-foreground bg-secondary px-3 py-2 rounded-md truncate">
-          {data.current}
-        </code>
-        <Button size="sm" onClick={() => onSelect(data.current)}>
-          이 폴더 선택
-        </Button>
-      </div>
+      {data.current !== "drives" && (
+        <div className="flex items-center gap-2">
+          <code className="flex-1 text-xs font-mono text-muted-foreground bg-secondary px-3 py-2 rounded-md truncate">
+            {data.current}
+          </code>
+          <Button size="sm" onClick={() => onSelect(data.current)}>
+            이 폴더 선택
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

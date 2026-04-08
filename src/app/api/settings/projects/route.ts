@@ -11,10 +11,11 @@ export function pathToProjectKey(absolutePath: string): string {
   return absolutePath.replace(/[/_]/g, "-");
 }
 
-// key → 실제 경로 역탐색
-// 전략: 홈 디렉토리를 앵커로 먼저 시도 → 실패하면 루트에서 DFS
+// key → 실제 경로 역탐색 (Mac/Windows 공통)
 function resolveKeyToPath(key: string): string | null {
-  const tokens = key.replace(/^-/, "").split("-").filter(Boolean);
+  const IS_WIN = process.platform === "win32";
+  // Claude Code: path separators (/ \ :) and underscores all become "-"
+  const tokens = key.replace(/^-+/, "").split("-").filter(Boolean);
 
   function dfs(currentPath: string, idx: number, maxDepth: number): string | null {
     if (idx === tokens.length) return fs.existsSync(currentPath) ? currentPath : null;
@@ -40,19 +41,41 @@ function resolveKeyToPath(key: string): string | null {
     return null;
   }
 
-  // 1) 홈 디렉토리를 앵커로 시도
   const home = os.homedir();
-  const homeKey = home.replace(/[/_\\ ]/g, "-").replace(/^-/, "");
-  const homeTokens = homeKey.split("-").filter(Boolean);
 
+  // 1) 홈 디렉토리를 앵커로 시도 (Mac + Windows 공통)
+  const homeNorm = home.replace(/\\/g, "/").replace(/:/g, "");
+  const homeKey = homeNorm.replace(/[/_]/g, "-").replace(/^-+/, "");
+  const homeTokens = homeKey.split("-").filter(Boolean);
   if (tokens.slice(0, homeTokens.length).join("-") === homeTokens.join("-")) {
     const result = dfs(home, homeTokens.length, tokens.length - homeTokens.length + 2);
     if (result) return result;
   }
 
-  // 2) 루트에서 DFS (깊이 제한)
-  const sep = path.sep === "\\" ? "\\" : "/";
-  return dfs(sep, 0, tokens.length + 2);
+  // 2) Windows: 드라이브 문자 추출 후 시도 (C:\ D:\ 등)
+  if (IS_WIN) {
+    // 첫 토큰이 드라이브 문자인 경우 (e.g., "C" from "C:" → Claude normalizes ":" to "-")
+    // try "C:\", "D:\", etc.
+    const drives = ["C", "D", "E", "F"];
+    for (const drive of drives) {
+      if (tokens[0]?.toUpperCase() === drive) {
+        const result = dfs(drive + ":\\", 1, tokens.length + 2);
+        if (result) return result;
+      }
+    }
+    // Also try without matching first token (brute-force drives)
+    for (const drive of drives) {
+      const drivePath = drive + ":\\";
+      if (fs.existsSync(drivePath)) {
+        const result = dfs(drivePath, 0, tokens.length + 2);
+        if (result) return result;
+      }
+    }
+    return null;
+  }
+
+  // 3) Unix: 루트에서 DFS
+  return dfs("/", 0, tokens.length + 2);
 }
 
 // ~/.claude/projects/ 스캔 → 실제 경로 역탐색
