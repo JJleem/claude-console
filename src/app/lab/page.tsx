@@ -317,7 +317,38 @@ function ToolUseExperiment() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── 개념 설명 ── */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Tool Use란?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            LLM이 텍스트만 생성하는 것을 넘어, <strong className="text-foreground">외부 함수(도구)를 직접 호출</strong>할 수 있는 기능입니다.
+            개발자가 툴의 스펙(이름, 파라미터, 설명)을 정의하면 Claude가 상황에 맞는 툴을 선택하고 인자를 채워 호출합니다.
+            결과를 받아 다시 생각하는 루프(Agentic Loop)가 핵심입니다.
+          </p>
+        </div>
+        <div className="flex gap-2 text-xs text-muted-foreground items-start flex-wrap">
+          <span className="shrink-0 font-mono text-primary">①</span><span>프롬프트 + 툴 스펙 → Claude 전달</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">②</span><span>Claude가 <strong className="text-foreground">tool_use</strong> 블록으로 호출할 툴과 인자 반환</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">③</span><span>실제 함수 실행 후 결과를 <strong className="text-foreground">tool_result</strong>로 전달</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">④</span><span>Claude가 최종 응답 생성</span>
+        </div>
+        <div className="border-t border-border pt-3">
+          <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>Claude가 어떤 기준으로 툴을 선택하는지 (tool_call 확인)</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>툴 결과가 최종 응답에 어떻게 반영되는지</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>여러 툴을 한 번에 호출하는 병렬 tool use 패턴</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>Tool Use가 RAG·에이전트·자동화의 기반이 되는 이유</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         {PREDEFINED_TOOLS.map((tool) => (
           <div key={tool.name} className="rounded-md border border-border bg-secondary/40 px-3 py-2.5 space-y-1">
@@ -489,7 +520,36 @@ function StructuredExperiment() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── 개념 설명 ── */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Structured Output이란?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            LLM의 응답을 자유로운 텍스트가 아닌 <strong className="text-foreground">정해진 JSON 스키마</strong>에 맞게 강제로 받아내는 기법입니다.
+            Tool Use의 <code className="font-mono text-xs bg-secondary px-1 rounded">tool_choice: forced</code>를 활용해 Claude가 반드시 특정 구조로만 응답하도록 합니다.
+            파싱 오류 없이 안정적으로 데이터를 추출할 수 있어 실무에서 많이 쓰입니다.
+          </p>
+        </div>
+        <div className="flex gap-2 text-xs text-muted-foreground items-start flex-wrap">
+          <span className="shrink-0 font-mono text-primary">①</span><span>추출할 필드와 타입 정의 (JSON Schema)</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">②</span><span><code className="font-mono bg-secondary px-1 rounded">tool_choice: {"{type: 'tool', name: 'extract'}"}</code>로 강제</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">③</span><span>Claude가 스키마에 맞는 JSON만 반환</span>
+        </div>
+        <div className="border-t border-border pt-3">
+          <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>필드 타입(string/number/boolean/array)이 출력에 어떤 영향을 주는지</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>description이 정밀할수록 추출 품질이 높아지는 것</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>프리스타일 텍스트 파싱 vs Structured Output의 안정성 차이</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>분류, 감성 분석, 데이터 추출 파이프라인에 적용하는 방법</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-muted-foreground">추출 필드 정의</label>
@@ -677,7 +737,38 @@ function ChainExperiment() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── 개념 설명 ── */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Prompt Chaining이란?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            복잡한 작업을 여러 단계의 LLM 호출로 나눠 순서대로 처리하는 패턴입니다.
+            각 단계의 출력이 다음 단계의 입력으로 전달되며, 단일 프롬프트로는 어려운 작업을
+            <strong className="text-foreground"> 분해 → 처리 → 조합</strong>하는 방식으로 해결합니다.
+          </p>
+        </div>
+        <div className="flex gap-2 text-xs text-muted-foreground items-start flex-wrap">
+          <span className="shrink-0 font-mono text-primary">①</span><span><code className="font-mono bg-secondary px-1 rounded">{"{{input}}"}</code> = 원본 입력</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">②</span><span>1단계 실행 → 출력</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">③</span><span><code className="font-mono bg-secondary px-1 rounded">{"{{prev}}"}</code>로 이전 출력 참조</span>
+          <span className="text-muted-foreground/30 mx-1">→</span>
+          <span className="shrink-0 font-mono text-primary">④</span><span>2단계… N단계 반복</span>
+        </div>
+        <div className="border-t border-border pt-3">
+          <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>단일 복잡 프롬프트 vs 체인 분해의 품질 차이</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>각 단계에 다른 시스템 프롬프트(역할)를 주는 효과</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>요약 → 번역, 추출 → 검증, 초안 → 다듬기 같은 실전 패턴</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>단계가 많아질수록 비용과 지연이 선형 증가하는 트레이드오프</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <label className="text-xs font-medium text-muted-foreground">원본 텍스트 입력</label>
         <textarea
@@ -867,7 +958,46 @@ function ContextExperiment() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+
+      {/* ── 개념 설명 ── */}
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Context Window란?</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            LLM이 한 번에 처리할 수 있는 <strong className="text-foreground">최대 토큰 수</strong>입니다.
+            시스템 프롬프트 + 대화 히스토리 + 문서 + 도구 결과가 모두 이 안에 들어가야 합니다.
+            토큰은 단어와 비슷하지만 정확히 같지 않아요 — 영어는 단어당 평균 1.3토큰, 한국어는 단어당 2~4토큰입니다.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="rounded-md bg-secondary px-3 py-2 space-y-0.5">
+            <p className="font-medium text-foreground">영어</p>
+            <p className="text-muted-foreground">~1.3 토큰/단어</p>
+            <p className="text-muted-foreground font-mono">1000단어 ≈ 1300토큰</p>
+          </div>
+          <div className="rounded-md bg-secondary px-3 py-2 space-y-0.5">
+            <p className="font-medium text-foreground">한국어</p>
+            <p className="text-muted-foreground">~2–4 토큰/단어</p>
+            <p className="text-muted-foreground font-mono">1000단어 ≈ 3000토큰</p>
+          </div>
+          <div className="rounded-md bg-secondary px-3 py-2 space-y-0.5">
+            <p className="font-medium text-foreground">코드</p>
+            <p className="text-muted-foreground">~1–2 토큰/단어</p>
+            <p className="text-muted-foreground font-mono">변수명·기호 따라 다름</p>
+          </div>
+        </div>
+        <div className="border-t border-border pt-3">
+          <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>같은 내용도 언어에 따라 토큰 수가 크게 달라지는 것</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>문서를 통째로 넣을 때 vs RAG로 청크만 넣을 때 토큰 차이</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>200K 컨텍스트가 실제로 얼마나 긴 문서인지 체감</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>토큰이 많아질수록 비용과 지연이 늘어나는 이유</li>
+          </ul>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-muted-foreground">텍스트 입력</label>
