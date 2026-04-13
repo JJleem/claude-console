@@ -1,10 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { runs, hookEvents } from "@/lib/db/schema";
 import { calcCost } from "@/lib/claude";
 import { pushEvent } from "@/lib/live-emitter";
+import { desc, like } from "drizzle-orm";
 
 export const maxDuration = 120;
 
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
         await db.insert(runs).values({
           model: MODEL, inputTokens, outputTokens, costUsd, durationMs,
           systemPrompt, userPrompt: `[RAG] ${query}`, response,
-          metadata: JSON.stringify({ source: "lab-rag", chunkCount: rawChunks.length, top3Scores: top3.map(c => c.score), embeddingModel: VOYAGE_MODEL }),
+          metadata: JSON.stringify({ source: "lab-rag", chunkCount: rawChunks.length, top3: top3.map(c => ({ text: c.text, score: c.score, index: c.index })), embeddingModel: VOYAGE_MODEL }),
         });
 
         try {
@@ -156,4 +157,25 @@ export async function POST(req: NextRequest) {
   return new Response(stream, {
     headers: { "Content-Type": "application/x-ndjson", "Cache-Control": "no-cache", Connection: "keep-alive" },
   });
+}
+
+export async function GET() {
+  const history = await db
+    .select({
+      id: runs.id,
+      createdAt: runs.createdAt,
+      userPrompt: runs.userPrompt,
+      response: runs.response,
+      inputTokens: runs.inputTokens,
+      outputTokens: runs.outputTokens,
+      costUsd: runs.costUsd,
+      durationMs: runs.durationMs,
+      metadata: runs.metadata,
+    })
+    .from(runs)
+    .where(like(runs.userPrompt, "[RAG]%"))
+    .orderBy(desc(runs.createdAt))
+    .limit(50);
+
+  return NextResponse.json(history);
 }

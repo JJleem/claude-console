@@ -111,6 +111,18 @@ LLM 에이전트는 도구(Tool)를 호출해 실제 작업을 수행하는 시�
 ## 컨텍스트 윈도우 관리
 최신 LLM은 100K~1M 토큰의 컨텍스트 윈도우를 지원하지만, 긴 컨텍스트는 비용과 지연시간이 증가합니다. Lost-in-the-middle 현상으로 인해 컨텍스트 중간 정보는 양 끝보다 덜 활용되는 경향이 있습니다. 슬라이딩 윈도우, 요약 압축, 메모리 계층화 등으로 컨텍스트를 효율적으로 관리합니다.`;
 
+interface RagHistoryItem {
+  id: string;
+  createdAt: string;
+  userPrompt: string;
+  response: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  metadata: string | null;
+}
+
 function RagExperiment() {
   const [document, setDocument] = useState(DEMO_DOCUMENT);
   const [query, setQuery] = useState("외부 데이터로 LLM 답변을 개선하는 방법은?");
@@ -120,6 +132,20 @@ function RagExperiment() {
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
   const isMissingKey = error.includes("VOYAGE_API_KEY");
+
+  const [history, setHistory] = useState<RagHistoryItem[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"experiment" | "history">("experiment");
+
+  useEffect(() => {
+    if (tab === "history") fetchHistory();
+  }, [tab]);
+
+  async function fetchHistory() {
+    const res = await fetch("/api/lab/rag");
+    const data = await res.json();
+    setHistory(data);
+  }
 
   async function run() {
     setRunning(true);
@@ -150,6 +176,84 @@ function RagExperiment() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── 탭 ── */}
+      <div className="flex gap-1 border-b border-border">
+        {(["experiment", "history"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={cn(
+              "px-4 py-2 text-xs font-medium transition-colors border-b-2 -mb-px",
+              tab === t
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === "experiment" ? "실험" : `히스토리${history.length > 0 ? ` (${history.length})` : ""}`}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 히스토리 탭 ── */}
+      {tab === "history" && (
+        <div className="space-y-2">
+          {history.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">아직 실행 기록이 없습니다</p>
+          ) : (
+            history.map((item) => {
+              const meta = (() => { try { return JSON.parse(item.metadata ?? "{}"); } catch { return {}; } })();
+              const isExpanded = expandedId === item.id;
+              const queryText = item.userPrompt.replace(/^\[RAG\]\s*/, "");
+              return (
+                <div key={item.id} className="rounded-lg border border-border overflow-hidden">
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 transition-colors"
+                  >
+                    <ChevronRight size={13} className={cn("shrink-0 text-muted-foreground transition-transform", isExpanded && "rotate-90")} />
+                    <span className="flex-1 text-xs text-foreground truncate">{queryText}</span>
+                    <div className="flex items-center gap-3 shrink-0 text-[10px] text-muted-foreground">
+                      <span className="font-mono">{meta.chunkCount ?? "?"} chunks</span>
+                      <span className="font-mono">${item.costUsd.toFixed(5)}</span>
+                      <span>{new Date(item.createdAt + "Z").toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-border divide-y divide-border">
+                      {meta.top3?.length > 0 && (
+                        <div className="bg-blue-500/5 p-4 space-y-2">
+                          <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">Step 1 · Voyage AI 검색 결과</p>
+                          <div className="space-y-2">
+                            {meta.top3.map((c: { text: string; score: number; index: number }, i: number) => (
+                              <div key={i} className="flex items-start gap-2 text-xs">
+                                <span className={cn("shrink-0 px-1.5 py-0.5 rounded border font-mono", scoreColor(c.score))}>{c.score.toFixed(3)}</span>
+                                <p className="text-foreground/80 leading-relaxed">{c.text}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="bg-purple-500/5 p-4 space-y-2">
+                        <p className="text-[10px] font-bold tracking-widest text-purple-400 uppercase">Step 2 · Claude 응답</p>
+                        <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{item.response}</p>
+                        <div className="flex gap-3 text-[10px] text-muted-foreground pt-1">
+                          <span>in {item.inputTokens} / out {item.outputTokens} tokens</span>
+                          <span>·</span>
+                          <span>{item.durationMs}ms</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* ── 실험 탭 ── */}
+      {tab === "experiment" && <>
 
       {/* ── 개념 설명 ── */}
       <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
@@ -332,6 +436,8 @@ function RagExperiment() {
 
         </div>
       )}
+
+      </>}
     </div>
   );
 }
