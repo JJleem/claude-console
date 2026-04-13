@@ -164,16 +164,28 @@ export async function POST(req: NextRequest) {
                 evalCount++;
                 send({
                   type: "progress",
-                  message: `run #${evalCount} 채점 중... (관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy})`,
+                  message: `${evalCount}번째 채점 완료 (관련성 ${relevance} / 품질 ${quality} / 정확성 ${accuracy})`,
                 });
 
                 const totalScore = (relevance + quality + accuracy) / 3;
-                await db.insert(evaluations).values({
+                const [inserted] = await db.insert(evaluations).values({
                   runId, relevance, quality, accuracy,
                   totalScore,
                   feedback,
                   judgeModel: model,
-                });
+                }).returning();
+
+                // 채점 즉시 결과 스트리밍 — 프론트에서 리스트에 바로 추가
+                const [runRow] = await db.select({
+                  userPrompt: runs.userPrompt, systemPrompt: runs.systemPrompt,
+                  response: runs.response, model: runs.model,
+                  inputTokens: runs.inputTokens, outputTokens: runs.outputTokens,
+                  costUsd: runs.costUsd, durationMs: runs.durationMs,
+                }).from(runs).where(eq(runs.id, runId)).limit(1);
+
+                if (runRow) {
+                  send({ type: "eval_result", result: { evaluation: inserted, run: runRow } });
+                }
 
                 // Live monitor
                 try {

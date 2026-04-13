@@ -479,9 +479,10 @@ export default function ABPage() {
     if (!hasResults) return;
     setJudging(true);
     setAiWinner(null); setAiVerdict(""); setManualWinner(null); setVerdictSaved(false);
+
     try {
-      const res = await fetch("/api/ab", {
-        method: "PUT",
+      const res = await fetch("/api/ab/judge", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemA: slotA?.system ?? "",
@@ -491,15 +492,41 @@ export default function ABPage() {
           responseB: resultB!.response,
         }),
       });
-      const data = await res.json();
-      setAiWinner(data.winner);
-      setAiVerdict(data.verdict);
 
-      if (currentRunId) {
+      if (!res.ok || !res.body) return;
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let finalWinner: Winner = null;
+      let finalVerdict = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n\n");
+        buf = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = JSON.parse(line.slice(6));
+          if (data.type === "text") {
+            finalVerdict += data.text;
+            setAiVerdict(finalVerdict);
+          } else if (data.type === "done") {
+            finalWinner = data.winner;
+            setAiWinner(data.winner);
+            setAiVerdict(data.verdict);
+          }
+        }
+      }
+
+      if (currentRunId && finalWinner) {
         await fetch("/api/harness", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ runId: currentRunId, winner: data.winner, verdict: data.verdict }),
+          body: JSON.stringify({ runId: currentRunId, winner: finalWinner, verdict: finalVerdict }),
         });
         setVerdictSaved(true);
       }
@@ -638,7 +665,10 @@ export default function ABPage() {
         {aiVerdict && (
           <div className="px-5 py-2.5 border-b border-border bg-yellow-500/5 flex items-start gap-2 shrink-0">
             <FlaskConical size={13} className="text-yellow-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-foreground leading-relaxed">{aiVerdict}</p>
+            <p className="text-xs text-foreground leading-relaxed">
+              {aiVerdict}
+              {judging && <span className="inline-block w-0.5 h-3.5 bg-yellow-400 animate-pulse ml-0.5 align-middle" />}
+            </p>
           </div>
         )}
 

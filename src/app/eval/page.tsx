@@ -138,11 +138,18 @@ export default function EvalPage() {
           const data = JSON.parse(line.slice(6));
           if (data.type === "progress") setProgress(data.message);
           else if (data.type === "text") setSummary((p) => p + data.text);
+          else if (data.type === "eval_result") {
+            // 채점 완료 즉시 리스트에 추가
+            setResults((prev) => {
+              const exists = prev.some((r) => r.evaluation.id === data.result.evaluation.id);
+              if (exists) return prev;
+              const next = [data.result, ...prev];
+              if (prev.length === 0) setSelected(data.result); // 첫 결과면 자동 선택
+              return next;
+            });
+          }
           else if (data.type === "done") {
-            setResults(data.results);
             setProgress("");
-            // 채점된 항목이 1개면 바로 상세 뷰 오픈
-            if (data.results?.length > 0) setSelected(data.results[0]);
           }
           else if (data.type === "error") setProgress(`오류: ${data.message}`);
         }
