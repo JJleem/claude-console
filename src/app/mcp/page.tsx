@@ -441,59 +441,151 @@ function MarketplaceTab({
   selectedProject: { path: string } | null;
   onRefresh: () => void;
 }) {
-  // feedbackKey → "global" | "project"
-  const [feedback, setFeedback] = useState<Record<string, string>>({});
+  const [setup, setSetup] = useState<{ item: MarketplaceItem; scope: "global" | "project" } | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editArgs, setEditArgs] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
   const installedKeys = new Set([
     ...globalServers.map((s) => s.name),
     ...projectServers.map((s) => s.name),
   ]);
 
-  async function handleAdd(item: MarketplaceItem, scope: "global" | "project") {
-    const fbKey = `${item.id}-${scope}`;
+  function openSetup(item: MarketplaceItem, scope: "global" | "project") {
+    setEditName(item.serverKey);
+    setEditArgs(item.args.join(" "));
+    setSetup({ item, scope });
+  }
+
+  async function handleConfirmAdd() {
+    if (!setup) return;
+    setAdding(true);
+    const args = editArgs.trim().split(/\s+/).filter(Boolean);
     await fetch("/api/mcp", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scope,
-        projectPath: scope === "project" && selectedProject ? selectedProject.path : undefined,
-        name: item.serverKey,
-        server: {
-          type: "stdio",
-          command: item.command,
-          args: item.args,
-        },
+        scope: setup.scope,
+        projectPath: setup.scope === "project" && selectedProject ? selectedProject.path : undefined,
+        name: editName.trim() || setup.item.serverKey,
+        server: { type: "stdio", command: setup.item.command, args },
       }),
     });
-    setFeedback((prev) => ({ ...prev, [fbKey]: "추가됨" }));
+    setAdding(false);
+    setSetup(null);
     onRefresh();
-    setTimeout(() => {
-      setFeedback((prev) => {
-        const next = { ...prev };
-        delete next[fbKey];
-        return next;
-      });
-    }, 2000);
+  }
+
+  function copyToClipboard(text: string, key: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
   }
 
   return (
+    <>
+    {/* ── 셋업 다이얼로그 ── */}
+    <Dialog open={!!setup} onOpenChange={(open) => !open && setSetup(null)}>
+      <DialogContent className="max-w-2xl w-[90vw]">
+        {setup && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-2">
+                <span>{setup.item.name}</span>
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${setup.item.categoryColor}`}>{setup.item.category}</span>
+                <span className="text-xs font-normal text-muted-foreground">→ {setup.scope === "global" ? "글로벌" : "프로젝트"} 추가</span>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-1">
+              {/* 서버 이름 */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">서버 이름</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                />
+              </div>
+
+              {/* Args */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Args
+                  {setup.item.id === "filesystem" && (
+                    <span className="ml-2 font-normal text-primary">← 마지막 경로를 허용할 디렉토리로 변경하세요</span>
+                  )}
+                </label>
+                <input
+                  value={editArgs}
+                  onChange={(e) => setEditArgs(e.target.value)}
+                  className="w-full text-sm bg-secondary border border-border rounded-md px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                />
+                <p className="text-[11px] text-muted-foreground">command: <span className="font-mono text-foreground/70">{setup.item.command}</span></p>
+              </div>
+
+              {/* 환경변수 안내 */}
+              {setup.item.envVars && setup.item.envVars.length > 0 && (
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-md bg-yellow-500/10 border border-yellow-500/20">
+                    <AlertCircle size={12} className="text-yellow-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                      아래 환경변수를 <code className="font-mono bg-yellow-500/20 px-1 rounded">~/.zshrc</code> 또는 <code className="font-mono bg-yellow-500/20 px-1 rounded">~/.bashrc</code>에 추가한 뒤 터미널을 재시작하세요.
+                      API 키는 여기에 직접 입력하지 마세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {setup.item.envVars.map((ev) => {
+                      const exportLine = `export ${ev.name}="your_token_here"`;
+                      return (
+                        <div key={ev.name} className="rounded-md border border-border bg-secondary/50 p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <code className="text-xs font-mono text-foreground font-medium">{ev.name}</code>
+                            <button
+                              onClick={() => copyToClipboard(exportLine, ev.name)}
+                              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-2 py-0.5 rounded border border-border hover:border-primary/40"
+                            >
+                              {copied === ev.name ? <CheckCircle2 size={10} className="text-green-400" /> : <Terminal size={10} />}
+                              {copied === ev.name ? "복사됨" : "복사"}
+                            </button>
+                          </div>
+                          <code className="block text-[11px] font-mono text-muted-foreground bg-background/60 px-2 py-1 rounded">
+                            {exportLine}
+                          </code>
+                          <p className="text-[11px] text-muted-foreground/70">{ev.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button onClick={handleConfirmAdd} disabled={adding || !editName.trim()} className="flex-1">
+                  <Plus size={13} className="mr-1" />{adding ? "추가 중..." : "추가"}
+                </Button>
+                <Button variant="outline" onClick={() => setSetup(null)}>취소</Button>
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+
     <ScrollArea className="h-full">
       <div className="p-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {MARKETPLACE.map((item) => {
           const alreadyAdded = installedKeys.has(item.serverKey);
           const visibleTools = item.tools.slice(0, MAX_TOOLS_SHOWN);
           const extraCount = item.tools.length - MAX_TOOLS_SHOWN;
-          const fbGlobal = feedback[`${item.id}-global`];
-          const fbProject = feedback[`${item.id}-project`];
 
           return (
             <Card key={item.id} className="border-border flex flex-col">
               <CardContent className="py-3 px-4 flex flex-col gap-2.5 flex-1">
                 {/* Top row: category + installed badge */}
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${item.categoryColor}`}
-                  >
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${item.categoryColor}`}>
                     {item.category}
                   </span>
                   {alreadyAdded && (
@@ -560,36 +652,20 @@ function MarketplaceTab({
                     size="sm"
                     variant="outline"
                     className="flex-1 h-7 text-xs"
-                    onClick={() => handleAdd(item, "global")}
+                    onClick={() => openSetup(item, "global")}
                   >
-                    {fbGlobal ? (
-                      <span className="flex items-center gap-1 text-green-500">
-                        <CheckCircle2 size={11} /> {fbGlobal}
-                      </span>
-                    ) : (
-                      <>
-                        <Globe size={11} className="mr-1" />
-                        글로벌 추가
-                      </>
-                    )}
+                    <Globe size={11} className="mr-1" />
+                    글로벌 추가
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="flex-1 h-7 text-xs"
                     disabled={!selectedProject}
-                    onClick={() => handleAdd(item, "project")}
+                    onClick={() => openSetup(item, "project")}
                   >
-                    {fbProject ? (
-                      <span className="flex items-center gap-1 text-green-500">
-                        <CheckCircle2 size={11} /> {fbProject}
-                      </span>
-                    ) : (
-                      <>
-                        <FolderOpen size={11} className="mr-1" />
-                        프로젝트 추가
-                      </>
-                    )}
+                    <FolderOpen size={11} className="mr-1" />
+                    프로젝트 추가
                   </Button>
                 </div>
               </CardContent>
@@ -598,6 +674,7 @@ function MarketplaceTab({
         })}
       </div>
     </ScrollArea>
+    </>
   );
 }
 
