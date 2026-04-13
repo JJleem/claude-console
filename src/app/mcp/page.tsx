@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Plus, Trash2, Pencil, Globe, FolderOpen, Save, Terminal, Wifi,
-  WifiOff, Loader2, RefreshCw, AlertCircle, CheckCircle2,
+  WifiOff, Loader2, RefreshCw, AlertCircle, CheckCircle2, Store,
 } from "lucide-react";
 import type { McpServer } from "@/app/api/mcp/route";
 
@@ -315,6 +315,292 @@ function McpList({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Marketplace
+// ---------------------------------------------------------------------------
+
+interface MarketplaceItem {
+  id: string;
+  name: string;
+  serverKey: string;
+  description: string;
+  category: string;
+  categoryColor: string;
+  command: string;
+  args: string[];
+  tools: string[];
+  envVars?: { name: string; description: string }[];
+  usageNote: string;
+  npmPackage: string;
+}
+
+const MARKETPLACE: MarketplaceItem[] = [
+  {
+    id: "filesystem",
+    name: "Filesystem",
+    serverKey: "filesystem",
+    description:
+      "로컬 파일 시스템에 대한 읽기·쓰기·탐색 권한을 Claude에게 부여합니다. 허용할 디렉토리를 지정하면 해당 범위 내에서만 파일 작업이 가능합니다.",
+    category: "파일 시스템",
+    categoryColor: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "~/Desktop"],
+    tools: ["read_file", "write_file", "list_directory", "create_directory", "move_file", "search_files", "get_file_info"],
+    usageNote:
+      "args의 마지막 경로를 접근 허용할 디렉토리로 변경하세요. 여러 경로를 공백으로 구분하여 추가할 수 있습니다.",
+    npmPackage: "@modelcontextprotocol/server-filesystem",
+  },
+  {
+    id: "github",
+    name: "GitHub",
+    serverKey: "github",
+    description:
+      "GitHub 레포지토리의 이슈·PR·코드를 Claude가 직접 읽고 생성할 수 있게 합니다. 코드 리뷰, 이슈 관리, 레포 탐색을 자동화할 수 있습니다.",
+    category: "개발 도구",
+    categoryColor: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-github"],
+    tools: ["create_issue", "list_issues", "search_code", "get_file_contents", "create_pull_request", "list_commits", "fork_repository"],
+    envVars: [
+      {
+        name: "GITHUB_PERSONAL_ACCESS_TOKEN",
+        description: "GitHub Settings → Developer settings → Personal access tokens에서 발급",
+      },
+    ],
+    usageNote:
+      "~/.zshrc에 GITHUB_PERSONAL_ACCESS_TOKEN을 환경변수로 추가한 뒤 터미널을 재시작하세요.",
+    npmPackage: "@modelcontextprotocol/server-github",
+  },
+  {
+    id: "brave-search",
+    name: "Brave Search",
+    serverKey: "brave-search",
+    description:
+      "Brave Search API를 통해 실시간 웹 검색을 Claude에게 제공합니다. 최신 뉴스, 문서, 공식 레퍼런스 검색에 활용할 수 있습니다.",
+    category: "검색",
+    categoryColor: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-brave-search"],
+    tools: ["brave_web_search", "brave_local_search"],
+    envVars: [
+      {
+        name: "BRAVE_API_KEY",
+        description: "brave.com/search/api에서 무료 플랜(월 2,000회) API 키 발급",
+      },
+    ],
+    usageNote:
+      "~/.zshrc에 BRAVE_API_KEY를 환경변수로 추가하세요. 무료 플랜으로 월 2,000회 검색이 가능합니다.",
+    npmPackage: "@modelcontextprotocol/server-brave-search",
+  },
+  {
+    id: "puppeteer",
+    name: "Puppeteer",
+    serverKey: "puppeteer",
+    description:
+      "Chromium 브라우저를 제어해 웹 스크래핑, 스크린샷 촬영, 폼 자동화를 수행합니다. 별도의 API 키 없이 바로 사용 가능합니다.",
+    category: "웹 자동화",
+    categoryColor: "bg-green-500/15 text-green-400 border-green-500/30",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-puppeteer"],
+    tools: ["puppeteer_navigate", "puppeteer_screenshot", "puppeteer_click", "puppeteer_fill", "puppeteer_select", "puppeteer_evaluate"],
+    usageNote:
+      "추가 설정 없이 바로 사용 가능합니다. 첫 실행 시 Chromium이 자동으로 다운로드됩니다.",
+    npmPackage: "@modelcontextprotocol/server-puppeteer",
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    serverKey: "slack",
+    description:
+      "Slack 워크스페이스의 채널·메시지를 Claude가 읽고 전송할 수 있게 합니다. 알림 자동화, 채널 요약, 메시지 검색에 활용할 수 있습니다.",
+    category: "커뮤니케이션",
+    categoryColor: "bg-pink-500/15 text-pink-400 border-pink-500/30",
+    command: "npx",
+    args: ["-y", "@modelcontextprotocol/server-slack"],
+    tools: ["list_channels", "post_message", "reply_to_thread", "get_channel_history", "list_users", "get_user_profile"],
+    envVars: [
+      { name: "SLACK_BOT_TOKEN", description: "api.slack.com/apps에서 Bot Token 발급 (xoxb-...)" },
+      { name: "SLACK_TEAM_ID", description: "워크스페이스 URL에서 확인 (T로 시작하는 ID)" },
+    ],
+    usageNote:
+      "Slack App을 생성하고 channels:read, chat:write 권한을 부여한 Bot Token이 필요합니다.",
+    npmPackage: "@modelcontextprotocol/server-slack",
+  },
+];
+
+const MAX_TOOLS_SHOWN = 4;
+
+function MarketplaceTab({
+  globalServers,
+  projectServers,
+  selectedProject,
+  onRefresh,
+}: {
+  globalServers: McpServer[];
+  projectServers: McpServer[];
+  selectedProject: { path: string } | null;
+  onRefresh: () => void;
+}) {
+  // feedbackKey → "global" | "project"
+  const [feedback, setFeedback] = useState<Record<string, string>>({});
+
+  const installedKeys = new Set([
+    ...globalServers.map((s) => s.name),
+    ...projectServers.map((s) => s.name),
+  ]);
+
+  async function handleAdd(item: MarketplaceItem, scope: "global" | "project") {
+    const fbKey = `${item.id}-${scope}`;
+    await fetch("/api/mcp", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scope,
+        projectPath: scope === "project" && selectedProject ? selectedProject.path : undefined,
+        name: item.serverKey,
+        server: {
+          type: "stdio",
+          command: item.command,
+          args: item.args,
+        },
+      }),
+    });
+    setFeedback((prev) => ({ ...prev, [fbKey]: "추가됨" }));
+    onRefresh();
+    setTimeout(() => {
+      setFeedback((prev) => {
+        const next = { ...prev };
+        delete next[fbKey];
+        return next;
+      });
+    }, 2000);
+  }
+
+  return (
+    <ScrollArea className="h-full">
+      <div className="p-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {MARKETPLACE.map((item) => {
+          const alreadyAdded = installedKeys.has(item.serverKey);
+          const visibleTools = item.tools.slice(0, MAX_TOOLS_SHOWN);
+          const extraCount = item.tools.length - MAX_TOOLS_SHOWN;
+          const fbGlobal = feedback[`${item.id}-global`];
+          const fbProject = feedback[`${item.id}-project`];
+
+          return (
+            <Card key={item.id} className="border-border flex flex-col">
+              <CardContent className="py-3 px-4 flex flex-col gap-2.5 flex-1">
+                {/* Top row: category + installed badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${item.categoryColor}`}
+                  >
+                    {item.category}
+                  </span>
+                  {alreadyAdded && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border bg-green-500/15 text-green-400 border-green-500/30">
+                      이미 추가됨
+                    </span>
+                  )}
+                </div>
+
+                {/* Name + package */}
+                <div>
+                  <p className="text-sm font-semibold text-foreground leading-tight">{item.name}</p>
+                  <p className="text-[11px] font-mono text-muted-foreground/70 mt-0.5">{item.npmPackage}</p>
+                </div>
+
+                {/* Description */}
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {item.description}
+                </p>
+
+                {/* Tools */}
+                <div className="flex flex-wrap gap-1">
+                  {visibleTools.map((t) => (
+                    <span
+                      key={t}
+                      className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                  {extraCount > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
+                      +{extraCount} more
+                    </span>
+                  )}
+                </div>
+
+                {/* Usage note */}
+                <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                  <AlertCircle size={11} className="text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
+                    {item.usageNote}
+                  </p>
+                </div>
+
+                {/* Env vars */}
+                {item.envVars && item.envVars.length > 0 && (
+                  <div className="space-y-1">
+                    {item.envVars.map((ev) => (
+                      <div key={ev.name} className="space-y-0.5">
+                        <p className="text-[11px] font-mono text-foreground/80">{ev.name}</p>
+                        <p className="text-[11px] text-muted-foreground/70">{ev.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Spacer to push buttons to bottom */}
+                <div className="flex-1" />
+
+                {/* Action buttons */}
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs"
+                    onClick={() => handleAdd(item, "global")}
+                  >
+                    {fbGlobal ? (
+                      <span className="flex items-center gap-1 text-green-500">
+                        <CheckCircle2 size={11} /> {fbGlobal}
+                      </span>
+                    ) : (
+                      <>
+                        <Globe size={11} className="mr-1" />
+                        글로벌 추가
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs"
+                    disabled={!selectedProject}
+                    onClick={() => handleAdd(item, "project")}
+                  >
+                    {fbProject ? (
+                      <span className="flex items-center gap-1 text-green-500">
+                        <CheckCircle2 size={11} /> {fbProject}
+                      </span>
+                    ) : (
+                      <>
+                        <FolderOpen size={11} className="mr-1" />
+                        프로젝트 추가
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </ScrollArea>
+  );
+}
+
 export default function McpPage() {
   const { selectedProject } = useProject();
   const [globalServers, setGlobalServers] = useState<McpServer[]>([]);
@@ -355,6 +641,9 @@ export default function McpPage() {
                 <Globe size={12} />글로벌
                 {globalServers.length > 0 && <Badge variant="secondary" className="text-xs h-4 px-1">{globalServers.length}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="marketplace" className="gap-1.5 text-xs">
+                <Store size={12} />마켓플레이스
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -372,6 +661,14 @@ export default function McpPage() {
             <McpList
               servers={globalServers}
               scope="global"
+              onRefresh={fetchServers}
+            />
+          </TabsContent>
+          <TabsContent value="marketplace" className="flex-1 overflow-hidden mt-0">
+            <MarketplaceTab
+              globalServers={globalServers}
+              projectServers={projectServers}
+              selectedProject={selectedProject}
               onRefresh={fetchServers}
             />
           </TabsContent>
