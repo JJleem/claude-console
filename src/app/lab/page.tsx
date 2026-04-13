@@ -87,16 +87,39 @@ interface RagChunk {
   index: number;
 }
 
+// 시맨틱 서치 효과를 잘 보여주는 예제 — AI 엔지니어링 핵심 개념
+const DEMO_DOCUMENT = `# AI 엔지니어링 핵심 개념 가이드
+
+## 프롬프트 엔지니어링
+LLM의 출력 품질은 입력 프롬프트 설계에 크게 좌우됩니다. 시스템 프롬프트에 역할(Role)과 출력 형식을 명시하면 일관된 응답을 얻을 수 있습니다. Chain-of-Thought(CoT) 기법은 "단계별로 생각하라"는 지시를 추가해 복잡한 추론 정확도를 높입니다. Few-shot 예시를 2~5개 포함하면 모델이 원하는 패턴을 빠르게 파악합니다. 온도(temperature)를 낮추면 결정론적 출력, 높이면 창의적 출력을 얻습니다.
+
+## 임베딩과 벡터 데이터베이스
+임베딩은 텍스트를 고차원 숫자 벡터로 변환하는 기술입니다. 의미가 유사한 문장은 벡터 공간에서 가까운 거리에 위치합니다. 코사인 유사도로 두 벡터의 방향 유사성을 0~1 사이 값으로 측정합니다. Pinecone, Weaviate, pgvector 같은 벡터 DB는 수백만 개의 임베딩을 밀리초 내에 검색합니다. Voyage AI, OpenAI의 text-embedding 모델이 대표적인 임베딩 제공업체입니다.
+
+## RAG (검색 증강 생성)
+RAG는 LLM의 지식 한계를 외부 문서로 보완하는 아키텍처입니다. 문서를 청크로 분할하고 임베딩으로 인덱싱한 뒤, 질문과 유사한 청크를 검색해 컨텍스트로 주입합니다. Naive RAG는 단순 유사도 검색을 사용하고, Advanced RAG는 재순위화(reranking)와 하이브리드 검색을 추가합니다. 청크 크기는 검색 정밀도와 문맥 보존 사이의 트레이드오프입니다. 작은 청크(50~100토큰)는 정밀 검색에, 큰 청크(500토큰+)는 문맥 유지에 유리합니다.
+
+## 파인튜닝과 RLHF
+파인튜닝은 사전 학습된 모델을 도메인 특화 데이터로 추가 학습시키는 방법입니다. LoRA(Low-Rank Adaptation)는 전체 파라미터 대신 소수의 어댑터 가중치만 학습해 비용을 크게 줄입니다. RLHF(인간 피드백 강화학습)는 사람의 선호도 데이터로 모델을 정렬하는 기술로, ChatGPT·Claude 훈련에 핵심적으로 사용됩니다. DPO(Direct Preference Optimization)는 RLHF보다 단순한 구현으로 비슷한 정렬 효과를 냅니다.
+
+## LLM 평가 (Evaluation)
+LLM 출력의 품질을 자동으로 측정하는 것은 AI 엔지니어링의 핵심 과제입니다. LLM-as-Judge 패턴은 더 강력한 모델(예: Claude Opus)로 다른 모델의 출력을 채점합니다. 평가 지표로는 정확성(Accuracy), 관련성(Relevance), 충실도(Faithfulness), 완전성(Completeness)이 있습니다. Ragas, ARES 같은 프레임워크가 RAG 파이프라인 평가를 자동화합니다.
+
+## 에이전트와 Tool Use
+LLM 에이전트는 도구(Tool)를 호출해 실제 작업을 수행하는 시스템입니다. 함수 호출(Function Calling) API를 통해 LLM이 웹 검색, 코드 실행, DB 조회를 직접 수행합니다. ReAct 패턴은 추론(Reasoning)과 행동(Acting)을 번갈아 반복해 복잡한 멀티스텝 태스크를 처리합니다. 멀티 에이전트 시스템은 여러 전문화된 에이전트가 협력해 복잡한 워크플로우를 처리합니다.
+
+## 컨텍스트 윈도우 관리
+최신 LLM은 100K~1M 토큰의 컨텍스트 윈도우를 지원하지만, 긴 컨텍스트는 비용과 지연시간이 증가합니다. Lost-in-the-middle 현상으로 인해 컨텍스트 중간 정보는 양 끝보다 덜 활용되는 경향이 있습니다. 슬라이딩 윈도우, 요약 압축, 메모리 계층화 등으로 컨텍스트를 효율적으로 관리합니다.`;
+
 function RagExperiment() {
-  const [document, setDocument] = useState(
-    "인공지능(AI)은 컴퓨터 시스템이 인간의 지능을 모방할 수 있도록 하는 기술입니다. 머신러닝은 AI의 하위 분야로, 알고리즘이 데이터를 통해 자동으로 학습합니다. 딥러닝은 머신러닝의 한 종류로, 신경망을 사용하여 복잡한 패턴을 학습합니다.\n\n자연어 처리(NLP)는 컴퓨터가 인간의 언어를 이해하고 생성할 수 있도록 합니다. 대형 언어 모델(LLM)은 방대한 텍스트 데이터로 학습된 신경망입니다. GPT, Claude, Gemini 등이 대표적인 LLM입니다.\n\n검색 증강 생성(RAG)은 LLM에 외부 지식을 결합하여 더 정확한 답변을 생성하는 기술입니다. 문서를 청크로 나누고 관련성 높은 청크를 선택하여 컨텍스트로 제공합니다.\n\n프롬프트 엔지니어링은 LLM의 출력을 최적화하기 위해 입력 프롬프트를 설계하는 기술입니다. 체인 오브 생각(CoT), 퓨샷 학습, 역할 부여 등의 기법이 있습니다."
-  );
-  const [query, setQuery] = useState("RAG가 무엇인가요?");
-  const [chunkSize, setChunkSize] = useState(50);
+  const [document, setDocument] = useState(DEMO_DOCUMENT);
+  const [query, setQuery] = useState("외부 데이터로 LLM 답변을 개선하는 방법은?");
+  const [chunkSize, setChunkSize] = useState(60);
   const [running, setRunning] = useState(false);
   const [chunks, setChunks] = useState<RagChunk[]>([]);
   const [response, setResponse] = useState("");
   const [error, setError] = useState("");
+  const isMissingKey = error.includes("VOYAGE_API_KEY");
 
   async function run() {
     setRunning(true);
@@ -120,8 +143,8 @@ function RagExperiment() {
   const top3Indices = new Set(sortedChunks.slice(0, 3).map((c) => c.index));
 
   function scoreColor(score: number) {
-    if (score >= 0.5) return "bg-green-500/15 text-green-400 border-green-500/30";
-    if (score >= 0.2) return "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
+    if (score >= 0.7) return "bg-green-500/15 text-green-400 border-green-500/30";
+    if (score >= 0.5) return "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
     return "bg-muted text-muted-foreground border-border";
   }
 
@@ -130,19 +153,22 @@ function RagExperiment() {
 
       {/* ── 개념 설명 ── */}
       <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-4">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-1">RAG란?</h3>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold text-foreground">RAG란?</h3>
+          <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 font-medium">
+            Powered by Voyage AI · voyage-3-lite
+          </span>
+        </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             <strong className="text-foreground">Retrieval-Augmented Generation</strong> — LLM이 학습 데이터에 없는 정보도 정확하게 답할 수 있도록,
             외부 문서에서 관련 내용을 검색(Retrieve)해서 프롬프트에 주입(Augment)한 뒤 응답을 생성(Generate)하는 기법입니다.
           </p>
-        </div>
         <div className="flex gap-2 text-xs text-muted-foreground items-start">
           <span className="shrink-0 font-mono text-primary">①</span>
           <span>문서를 일정 크기의 <strong className="text-foreground">청크(chunk)</strong>로 분할</span>
           <span className="text-muted-foreground/30 mx-1">→</span>
           <span className="shrink-0 font-mono text-primary">②</span>
-          <span>질문과 각 청크 사이의 <strong className="text-foreground">유사도 점수</strong> 계산 (여기선 TF-IDF)</span>
+          <span>질문과 각 청크 사이의 <strong className="text-foreground">코사인 유사도</strong> 계산 (Voyage AI 임베딩)</span>
           <span className="text-muted-foreground/30 mx-1">→</span>
           <span className="shrink-0 font-mono text-primary">③</span>
           <span>상위 청크를 컨텍스트로 LLM에 주입 → 응답 생성</span>
@@ -151,9 +177,9 @@ function RagExperiment() {
           <p className="text-xs font-medium text-foreground mb-2">🎯 이 실험에서 배울 것</p>
           <ul className="space-y-1 text-xs text-muted-foreground">
             <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>청크 크기가 검색 품질에 미치는 영향 (크기를 조절해보세요)</li>
-            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>TF-IDF 유사도 점수가 어떻게 관련 청크를 찾아내는지</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>Voyage AI 임베딩 코사인 유사도가 어떻게 의미적으로 관련된 청크를 찾아내는지</li>
             <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>컨텍스트 주입 전후 LLM 응답의 차이</li>
-            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>RAG의 한계 — 임베딩 없이 키워드 기반 검색의 정확도 한계</li>
+            <li className="flex items-start gap-2"><span className="text-primary shrink-0">•</span>시맨틱 서치 vs 키워드 서치 — 동의어·개념 검색에서 임베딩이 유리한 이유</li>
           </ul>
         </div>
       </div>
@@ -207,54 +233,103 @@ function RagExperiment() {
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">{error}</div>
+        isMissingKey ? (
+          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 space-y-2">
+            <p className="text-xs font-semibold text-yellow-400">Voyage AI API 키가 필요합니다</p>
+            <ol className="space-y-1 text-xs text-muted-foreground list-none">
+              <li>① <a href="https://dash.voyageai.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 underline underline-offset-2">dash.voyageai.com</a> 에서 무료 계정 생성</li>
+              <li>② API Keys 메뉴에서 키 발급 (무료 티어 · 월 200M 토큰)</li>
+              <li>③ 프로젝트 루트 <code className="bg-secondary px-1 rounded">.env</code> 파일에 추가:</li>
+            </ol>
+            <pre className="text-xs bg-secondary rounded px-3 py-2 font-mono text-foreground">VOYAGE_API_KEY=pa-xxxxxxxxxxxxxxxx</pre>
+            <p className="text-xs text-muted-foreground">저장 후 개발 서버를 재시작하면 바로 사용 가능합니다.</p>
+          </div>
+        ) : (
+          <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">{error}</div>
+        )
       )}
 
-      {/* ── 청크 분석 결과 ── */}
-      {chunks.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-medium text-foreground">청크 분석</p>
-            <span className="text-xs text-muted-foreground">{chunks.length}개 생성 · 상위 3개가 컨텍스트로 주입됨</span>
-            <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500/60 inline-block" />높은 관련도</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500/60 inline-block" />보통</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-border inline-block" />낮음</span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto pr-1">
-            {[...chunks].sort((a, b) => b.score - a.score).map((chunk) => (
-              <div
-                key={chunk.index}
-                className={cn(
-                  "rounded-md border px-3 py-2 text-xs",
-                  top3Indices.has(chunk.index) ? "border-primary/50 bg-primary/5" : "border-border bg-secondary/40"
-                )}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground font-mono">청크 #{chunk.index + 1}</span>
-                    {top3Indices.has(chunk.index) && <span className="text-xs text-primary">컨텍스트 주입됨</span>}
-                  </div>
-                  <span className={cn("text-xs px-1.5 py-0.5 rounded border font-mono", scoreColor(chunk.score))}>
-                    {chunk.score.toFixed(3)}
-                  </span>
+      {/* ── 파이프라인 결과 ── */}
+      {(chunks.length > 0 || response) && (
+        <div className="space-y-0">
+
+          {/* STEP 1 — Voyage AI */}
+          {chunks.length > 0 && (
+            <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 overflow-hidden">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-blue-500/20 bg-blue-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">Step 1</span>
+                  <span className="text-xs font-medium text-blue-300">Voyage AI · voyage-3-lite</span>
+                  <span className="text-xs text-blue-400/60">— 시맨틱 검색</span>
                 </div>
-                <p className="text-foreground/80 leading-relaxed line-clamp-2">{chunk.text}</p>
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <span>{chunks.length}개 청크 임베딩</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500/70 inline-block" />0.7↑ 높음</span>
+                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500/70 inline-block" />0.5↑ 보통</span>
+                  <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-border inline-block" />낮음</span>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              {/* 청크 목록 */}
+              <div className="divide-y divide-blue-500/10 max-h-72 overflow-y-auto">
+                {[...chunks].sort((a, b) => b.score - a.score).map((chunk, rank) => (
+                  <div key={chunk.index} className={cn(
+                    "flex items-start gap-3 px-4 py-2.5 text-xs",
+                    top3Indices.has(chunk.index) ? "bg-blue-500/10" : "opacity-50"
+                  )}>
+                    <span className="shrink-0 font-mono text-muted-foreground w-12">#{chunk.index + 1}</span>
+                    <p className="flex-1 text-foreground/80 leading-relaxed line-clamp-2">{chunk.text}</p>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {top3Indices.has(chunk.index) && (
+                        <span className="text-[10px] text-blue-400 font-medium">Top {rank + 1}</span>
+                      )}
+                      <span className={cn("text-xs px-1.5 py-0.5 rounded border font-mono", scoreColor(chunk.score))}>
+                        {chunk.score.toFixed(3)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* 선택된 청크 요약 */}
+              <div className="px-4 py-2 border-t border-blue-500/20 bg-blue-500/5">
+                <p className="text-[10px] text-blue-400/80">
+                  상위 3개 청크 → Claude 컨텍스트로 주입
+                  <span className="text-muted-foreground ml-2">
+                    (scores: {[...chunks].sort((a, b) => b.score - a.score).slice(0, 3).map(c => c.score.toFixed(3)).join(", ")})
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
 
-      {/* ── 생성된 응답 ── */}
-      {response && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-foreground">생성된 응답 <span className="text-muted-foreground font-normal">(주입된 컨텍스트 기반)</span></p>
-          <div className="rounded-md border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-            {response}
-            {running && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />}
-          </div>
+          {/* 파이프라인 화살표 */}
+          {chunks.length > 0 && (response || running) && (
+            <div className="flex justify-center py-2">
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="w-px h-3 bg-border" />
+                <svg width="10" height="6" viewBox="0 0 10 6" className="text-border fill-current"><path d="M5 6L0 0h10z"/></svg>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2 — Claude API */}
+          {(response || running) && (
+            <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 overflow-hidden">
+              {/* 헤더 */}
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-purple-500/20 bg-purple-500/10">
+                <span className="text-[10px] font-bold tracking-widest text-purple-400 uppercase">Step 2</span>
+                <span className="text-xs font-medium text-purple-300">Claude · claude-haiku-4-5</span>
+                <span className="text-xs text-purple-400/60">— 컨텍스트 기반 응답 생성</span>
+              </div>
+              {/* 응답 */}
+              <div className="px-4 py-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {response}
+                {running && <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
     </div>

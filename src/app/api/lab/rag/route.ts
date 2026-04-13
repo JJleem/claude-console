@@ -10,33 +10,39 @@ export const maxDuration = 120;
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── TF-IDF cosine similarity ──────────────────────────────────────────────────
+// ── Voyage AI Embeddings ──────────────────────────────────────────────────────
 
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 1);
-}
+const VOYAGE_MODEL = "voyage-3-lite"; // free tier, 1024-dim
 
-function tfIdf(tokens: string[], corpus: string[][]): Map<string, number> {
-  const N = corpus.length;
-  const tf = new Map<string, number>();
-  for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1);
-  const result = new Map<string, number>();
-  tf.forEach((count, term) => {
-    const df = corpus.filter((doc) => doc.includes(term)).length;
-    const idf = Math.log((N + 1) / (df + 1)) + 1;
-    result.set(term, (count / tokens.length) * idf);
+async function embedTexts(texts: string[]): Promise<number[][]> {
+  const res = await fetch("https://api.voyageai.com/v1/embeddings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
+    },
+    body: JSON.stringify({ input: texts, model: VOYAGE_MODEL }),
   });
-  return result;
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Voyage AI error ${res.status}: ${err}`);
+  }
+
+  const json = await res.json() as { data: { index: number; embedding: number[] }[] };
+  // sort by index to preserve order
+  return json.data
+    .sort((a, b) => a.index - b.index)
+    .map((d) => d.embedding);
 }
 
-function cosineSimilarity(a: Map<string, number>, b: Map<string, number>): number {
+function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, magA = 0, magB = 0;
-  a.forEach((v, k) => { dot += v * (b.get(k) ?? 0); magA += v * v; });
-  b.forEach((v) => { magB += v * v; });
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
+  }
   const denom = Math.sqrt(magA) * Math.sqrt(magB);
   return denom === 0 ? 0 : dot / denom;
 }
@@ -68,6 +74,10 @@ export async function POST(req: NextRequest) {
     return new Response(JSON.stringify({ error: "document and query required" }), { status: 400 });
   }
 
+  if (!process.env.VOYAGE_API_KEY) {
+    return new Response(JSON.stringify({ error: "VOYAGE_API_KEY가 설정되지 않았습니다. .env에 추가해주세요." }), { status: 500 });
+  }
+
   const encoder = new TextEncoder();
   const MODEL = "claude-haiku-4-5-20251001";
   const start = Date.now();
@@ -82,15 +92,18 @@ export async function POST(req: NextRequest) {
 
       try {
         const rawChunks = chunkDocument(document, Math.max(20, chunkSize));
-        const tokenizedChunks = rawChunks.map(tokenize);
-        const queryTokens = tokenize(query);
-        const queryVec = tfIdf(queryTokens, tokenizedChunks);
 
-        const scored = rawChunks.map((text, index) => {
-          const chunkVec = tfIdf(tokenizedChunks[index], tokenizedChunks);
-          const score = cosineSimilarity(queryVec, chunkVec);
-          return { text, score: Math.round(score * 1000) / 1000, index };
-        });
+        // 쿼리 + 모든 청크를 한 번의 API 호출로 임베딩 (무료 티어 효율 최대화)
+        const allTexts = [query, ...rawChunks];
+        const embeddings = await embedTexts(allTexts);
+        const queryVec = embeddings[0];
+        const chunkVecs = embeddings.slice(1);
+
+        const scored = rawChunks.map((text, index) => ({
+          text,
+          score: Math.round(cosineSimilarity(queryVec, chunkVecs[index]) * 1000) / 1000,
+          index,
+        }));
 
         const top3 = [...scored].sort((a, b) => b.score - a.score).slice(0, 3);
         send({ type: "chunks", data: scored });
@@ -121,7 +134,7 @@ export async function POST(req: NextRequest) {
         await db.insert(runs).values({
           model: MODEL, inputTokens, outputTokens, costUsd, durationMs,
           systemPrompt, userPrompt: `[RAG] ${query}`, response,
-          metadata: JSON.stringify({ source: "lab-rag", chunkCount: rawChunks.length, top3Scores: top3.map(c => c.score) }),
+          metadata: JSON.stringify({ source: "lab-rag", chunkCount: rawChunks.length, top3Scores: top3.map(c => c.score), embeddingModel: VOYAGE_MODEL }),
         });
 
         try {

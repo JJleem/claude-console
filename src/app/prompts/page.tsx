@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight } from "lucide-react";
+import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight, Info, X } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 import type { PromptVersion } from "@/lib/db/schema";
@@ -30,6 +30,7 @@ export default function PromptsPage() {
   const [saving, setSaving] = useState(false);
   const [versionLabel, setVersionLabel] = useState("");
   const [showVersionSave, setShowVersionSave] = useState(false);
+  const [tipsDismissed, setTipsDismissed] = useState(false);
 
   const isDirty = content !== savedContent;
   const tokenCount = estimateTokens(content);
@@ -186,6 +187,45 @@ export default function PromptsPage() {
             <Button size="sm" variant="ghost" onClick={() => setShowVersionSave(false)}>
               취소
             </Button>
+          </div>
+        )}
+
+        {/* CLAUDE.md 작성 팁 배너 */}
+        {!tipsDismissed && (
+          <div className="px-5 py-3 border-b border-border bg-amber-400/30 shrink-0">
+            <div className="flex items-start gap-2.5">
+              <Info size={13} className="text-primary mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-8 gap-y-2">
+                {/* 제목 */}
+                <p className="col-span-2 text-xs font-medium text-primary">
+                  CLAUDE.md는 세션 시작이 아닌 <span className="underline">매 메시지마다</span> 읽혀요 — 길수록 토큰 비용이 쌓입니다
+                  <span className="ml-2 font-normal text-muted-foreground">
+                    (장황한 ~5,000t → 간결한 ~700t)
+                  </span>
+                </p>
+                {/* 컬럼 1 */}
+                <div>
+                  <p className="text-xs font-medium text-primary mb-1">넣어두면 좋은 것들</p>
+                  <ul className="space-y-0.5">
+                    {["아키텍처·기술 스택 결정 사항", "코딩 컨벤션 & 네이밍 규칙", "빌드 / 테스트 / 배포 명령어", "자주 하는 실수와 해결책", "Claude에게 바라는 행동 규칙"].map((t) => (
+                      <li key={t} className="text-xs flex gap-1.5"><span className="text-primary/60 shrink-0">·</span>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+                {/* 컬럼 2 */}
+                <div>
+                  <p className="text-xs font-medium text-primary mb-1">다이어트 팁 <span className="font-normal opacity-60">— 200줄부터 정리 타이밍</span></p>
+                  <ul className="space-y-0.5">
+                    {['"이 프로젝트는.." 서술형 문장 제거', "헤딩 · 리스트 · 테이블로 구조화", "규칙은 최소 단위로 축약", "코드 예시 과도 사용 주의"].map((t) => (
+                      <li key={t} className="text-xs flex gap-1.5"><span className="text-primary/60 shrink-0">·</span>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <button onClick={() => setTipsDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5">
+                <X size={13} />
+              </button>
+            </div>
           </div>
         )}
 

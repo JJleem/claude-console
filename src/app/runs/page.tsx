@@ -11,6 +11,46 @@ import { Separator } from "@/components/ui/separator";
 import { Search, X } from "lucide-react";
 import type { Run } from "@/lib/db/schema";
 
+const SOURCE_LABELS: Record<string, string> = {
+  "ab-test":        "A/B",
+  "eval":           "Eval",
+  "lab-rag":        "Lab · RAG",
+  "lab-tools":      "Lab · Tools",
+  "lab-structured": "Lab · Structured",
+  "lab-chain":      "Lab · Chain",
+  "direct":         "Direct",
+};
+
+const SOURCE_COLORS: Record<string, string> = {
+  "ab-test":        "bg-orange-500/15 text-orange-600 border-orange-500/30",
+  "eval":           "bg-green-500/15 text-green-600 border-green-500/30",
+  "lab-rag":        "bg-blue-500/15 text-blue-600 border-blue-500/30",
+  "lab-tools":      "bg-purple-500/15 text-purple-600 border-purple-500/30",
+  "lab-structured": "bg-cyan-500/15 text-cyan-600 border-cyan-500/30",
+  "lab-chain":      "bg-indigo-500/15 text-indigo-600 border-indigo-500/30",
+  "direct":         "bg-muted text-muted-foreground border-border",
+};
+
+function parseSource(metadata: string | null | undefined): string {
+  if (!metadata) return "direct";
+  try {
+    const m = JSON.parse(metadata);
+    return m.source ?? "direct";
+  } catch {
+    return "direct";
+  }
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const label = SOURCE_LABELS[source] ?? source;
+  const color = SOURCE_COLORS[source] ?? SOURCE_COLORS["direct"];
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${color}`}>
+      {label}
+    </span>
+  );
+}
+
 export default function RunsPage() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [selected, setSelected] = useState<Run | null>(null);
@@ -98,6 +138,7 @@ export default function RunsPage() {
                     <Badge variant="secondary" className="font-mono text-xs">
                       {run.model.replace("claude-", "")}
                     </Badge>
+                    <SourceBadge source={parseSource(run.metadata)} />
                     <span className="text-xs text-muted-foreground ml-auto">
                       ${run.costUsd.toFixed(5)}
                     </span>
@@ -157,7 +198,8 @@ export default function RunsPage() {
           {selected ? (
             <div className="max-w-3xl space-y-4">
               {/* Meta badges */}
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <SourceBadge source={parseSource(selected.metadata)} />
                 {[
                   { label: "Model", value: selected.model },
                   { label: "Input", value: `${selected.inputTokens} tokens` },
