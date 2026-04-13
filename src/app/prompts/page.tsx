@@ -7,13 +7,50 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight, Info, X } from "lucide-react";
+import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight, Info, X, GitCompare, Download } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 import type { PromptVersion } from "@/lib/db/schema";
 
 function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
+}
+
+// ── Line-level diff (LCS-based) ───────────────────────────────────────────────
+
+type DiffLine =
+  | { type: "added";     text: string; newLine: number }
+  | { type: "removed";   text: string; oldLine: number }
+  | { type: "unchanged"; text: string; oldLine: number; newLine: number };
+
+function computeDiff(oldText: string, newText: string): DiffLine[] {
+  const oldLines = oldText.split("\n");
+  const newLines = newText.split("\n");
+  const m = oldLines.length, n = newLines.length;
+
+  // LCS DP (safe for typical CLAUDE.md sizes < 1000 lines)
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = m - 1; i >= 0; i--)
+    for (let j = n - 1; j >= 0; j--)
+      dp[i][j] = oldLines[i] === newLines[j]
+        ? dp[i + 1][j + 1] + 1
+        : Math.max(dp[i + 1][j], dp[i][j + 1]);
+
+  const result: DiffLine[] = [];
+  let i = 0, j = 0, ol = 1, nl = 1;
+  while (i < m || j < n) {
+    if (i < m && j < n && oldLines[i] === newLines[j]) {
+      result.push({ type: "unchanged", text: oldLines[i], oldLine: ol++, newLine: nl++ });
+      i++; j++;
+    } else if (j < n && (i >= m || dp[i + 1][j] <= dp[i][j + 1])) {
+      result.push({ type: "added", text: newLines[j], newLine: nl++ });
+      j++;
+    } else {
+      result.push({ type: "removed", text: oldLines[i], oldLine: ol++ });
+      i++;
+    }
+  }
+  return result;
 }
 
 // content에서 @filename 패턴 추출
@@ -31,6 +68,7 @@ export default function PromptsPage() {
   const [versionLabel, setVersionLabel] = useState("");
   const [showVersionSave, setShowVersionSave] = useState(false);
   const [tipsDismissed, setTipsDismissed] = useState(false);
+  const [diffVersion, setDiffVersion] = useState<PromptVersion | null>(null);
 
   const isDirty = content !== savedContent;
   const tokenCount = estimateTokens(content);
@@ -265,15 +303,25 @@ export default function PromptsPage() {
           </div>
         )}
 
-        {/* Textarea Editor */}
+        {/* Textarea Editor / Diff View */}
         <div className="flex-1 overflow-hidden">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full h-full resize-none bg-background text-foreground text-sm font-mono p-5 focus:outline-none leading-relaxed"
-            placeholder={`# ${selectedProject.name}\n\nCLAUDE.md 파일이 없습니다. 내용을 작성하고 저장하면 파일이 생성됩니다.`}
-            spellCheck={false}
-          />
+          {diffVersion ? (
+            <DiffView
+              label={diffVersion.label}
+              oldText={diffVersion.content}
+              newText={content}
+              onClose={() => setDiffVersion(null)}
+              onLoad={() => { setContent(diffVersion.content); setDiffVersion(null); }}
+            />
+          ) : (
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full h-full resize-none bg-background text-foreground text-sm font-mono p-5 focus:outline-none leading-relaxed"
+              placeholder={`# ${selectedProject.name}\n\nCLAUDE.md 파일이 없습니다. 내용을 작성하고 저장하면 파일이 생성됩니다.`}
+              spellCheck={false}
+            />
+          )}
         </div>
       </div>
 
@@ -301,10 +349,9 @@ export default function PromptsPage() {
           ) : (
             <div className="divide-y divide-border">
               {versions.map((v) => (
-                <button
+                <div
                   key={v.id}
-                  onClick={() => handleLoadVersion(v)}
-                  className="w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors"
+                  className={`px-4 py-3 transition-colors ${diffVersion?.id === v.id ? "bg-primary/5 border-l-2 border-primary" : "hover:bg-accent/30"}`}
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-medium text-foreground">{v.label}</span>
@@ -312,7 +359,7 @@ export default function PromptsPage() {
                       ~{(v.tokenCount ?? 0).toLocaleString()}t
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mb-2">
                     {new Date(v.createdAt + "Z").toLocaleDateString("ko-KR", {
                       month: "short",
                       day: "numeric",
@@ -320,10 +367,27 @@ export default function PromptsPage() {
                       minute: "2-digit",
                     })}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 truncate">
-                    {v.content.slice(0, 50)}...
-                  </p>
-                </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => setDiffVersion(diffVersion?.id === v.id ? null : v)}
+                      className={`flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium border transition-colors ${
+                        diffVersion?.id === v.id
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40 hover:text-primary"
+                      }`}
+                    >
+                      <GitCompare size={10} />
+                      {diffVersion?.id === v.id ? "닫기" : "비교"}
+                    </button>
+                    <button
+                      onClick={() => { setContent(v.content); setDiffVersion(null); }}
+                      className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded text-[10px] font-medium border border-border text-muted-foreground hover:border-border hover:text-foreground transition-colors"
+                    >
+                      <Download size={10} />
+                      불러오기
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -345,6 +409,97 @@ export default function PromptsPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DiffView Component ────────────────────────────────────────────────────────
+
+function DiffView({
+  label,
+  oldText,
+  newText,
+  onClose,
+  onLoad,
+}: {
+  label: string;
+  oldText: string;
+  newText: string;
+  onClose: () => void;
+  onLoad: () => void;
+}) {
+  const lines = computeDiff(oldText, newText);
+  const added   = lines.filter((l) => l.type === "added").length;
+  const removed = lines.filter((l) => l.type === "removed").length;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Diff header */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-secondary/30 shrink-0">
+        <GitCompare size={13} className="text-muted-foreground" />
+        <span className="text-xs font-medium text-foreground">{label}</span>
+        <span className="text-xs text-muted-foreground">↔ 현재</span>
+        <div className="flex items-center gap-2 text-xs font-mono ml-2">
+          {added   > 0 && <span className="text-green-400">+{added}</span>}
+          {removed > 0 && <span className="text-red-400">-{removed}</span>}
+          {added === 0 && removed === 0 && <span className="text-muted-foreground">변경 없음</span>}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={onLoad}>
+            <Download size={12} className="mr-1" />
+            이 버전으로 불러오기
+          </Button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Diff body */}
+      <div className="flex-1 overflow-auto font-mono text-xs leading-5">
+        <table className="w-full border-collapse">
+          <tbody>
+            {lines.map((line, i) => {
+              const isAdded   = line.type === "added";
+              const isRemoved = line.type === "removed";
+              const oldNum = "oldLine" in line ? line.oldLine : null;
+              const newNum = "newLine" in line ? line.newLine : null;
+
+              return (
+                <tr
+                  key={i}
+                  className={
+                    isAdded   ? "bg-green-500/10 hover:bg-green-500/15" :
+                    isRemoved ? "bg-red-500/10 hover:bg-red-500/15" :
+                    "hover:bg-accent/20"
+                  }
+                >
+                  {/* 구 라인 번호 */}
+                  <td className="w-10 text-right pr-2 pl-3 text-muted-foreground/40 select-none border-r border-border/40 py-px">
+                    {oldNum ?? ""}
+                  </td>
+                  {/* 신 라인 번호 */}
+                  <td className="w-10 text-right pr-2 pl-2 text-muted-foreground/40 select-none border-r border-border/40 py-px">
+                    {newNum ?? ""}
+                  </td>
+                  {/* 기호 */}
+                  <td className={`w-5 text-center select-none py-px font-bold ${
+                    isAdded ? "text-green-400" : isRemoved ? "text-red-400" : "text-muted-foreground/20"
+                  }`}>
+                    {isAdded ? "+" : isRemoved ? "−" : " "}
+                  </td>
+                  {/* 내용 */}
+                  <td className={`pl-1 pr-4 py-px whitespace-pre-wrap break-all ${
+                    isAdded ? "text-green-300" : isRemoved ? "text-red-300" : "text-foreground/80"
+                  }`}>
+                    {line.text || " "}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
