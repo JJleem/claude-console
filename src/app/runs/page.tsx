@@ -171,9 +171,63 @@ function exportRuns(runs: Run[], format: "csv" | "json") {
   URL.revokeObjectURL(url);
 }
 
+function CompareView({ runA, runB, onClose }: { runA: Run; runB: Run; onClose: () => void }) {
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-border bg-secondary/30 flex items-center gap-3 shrink-0">
+        <span className="text-xs font-medium text-foreground">Run 비교</span>
+        <Badge variant="secondary" className="font-mono text-xs">{runA.model.replace("claude-", "")}</Badge>
+        <span className="text-xs text-muted-foreground">vs</span>
+        <Badge variant="secondary" className="font-mono text-xs">{runB.model.replace("claude-", "")}</Badge>
+        <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground transition-colors">
+          <X size={14} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-hidden flex">
+        {[runA, runB].map((run, idx) => (
+          <div key={run.id} className={`flex-1 overflow-y-auto p-4 space-y-3 ${idx === 0 ? "border-r border-border" : ""}`}>
+            {/* Meta */}
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "Model", val: run.model.replace("claude-", "") },
+                { label: "In", val: `${run.inputTokens}t` },
+                { label: "Out", val: `${run.outputTokens}t` },
+                { label: "Cost", val: `$${run.costUsd.toFixed(5)}` },
+                { label: "ms", val: String(run.durationMs) },
+              ].map((m) => (
+                <Badge key={m.label} variant="outline" className="font-mono text-[10px]">{m.label}: {m.val}</Badge>
+              ))}
+            </div>
+            {/* System */}
+            {run.systemPrompt && (
+              <div>
+                <p className="text-[10px] text-muted-foreground uppercase mb-1">System</p>
+                <pre className="text-xs font-mono text-muted-foreground bg-secondary px-3 py-2 rounded whitespace-pre-wrap">{run.systemPrompt}</pre>
+              </div>
+            )}
+            {/* User */}
+            <div>
+              <p className="text-[10px] text-primary uppercase mb-1">User</p>
+              <p className="text-xs text-foreground bg-primary/5 border border-primary/20 rounded px-3 py-2 whitespace-pre-wrap">{run.userPrompt}</p>
+            </div>
+            {/* Response */}
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase mb-1">Assistant</p>
+              <p className="text-xs text-foreground bg-secondary rounded px-3 py-2 whitespace-pre-wrap">{run.response}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function RunsPage() {
   const [runs, setRuns] = useState<Run[]>([]);
   const [selected, setSelected] = useState<Run | null>(null);
+  const [compareA, setCompareA] = useState<Run | null>(null);
+  const [compareB, setCompareB] = useState<Run | null>(null);
+  const [compareMode, setCompareMode] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [system, setSystem] = useState("");
   const [loading, setLoading] = useState(false);
@@ -219,23 +273,30 @@ export default function RunsPage() {
         <div className="px-5 py-4 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <h1 className="text-sm font-semibold text-foreground">Runs</h1>
-            {runs.length > 0 && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => exportRuns(runs, "csv")}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border"
-                >
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => { setCompareMode((v) => !v); setCompareA(null); setCompareB(null); }}
+                className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors border ${
+                  compareMode ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                }`}
+              >
+                비교
+              </button>
+              {runs.length > 0 && (<>
+                <button onClick={() => exportRuns(runs, "csv")} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border">
                   <Download size={10} /> CSV
                 </button>
-                <button
-                  onClick={() => exportRuns(runs, "json")}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border"
-                >
+                <button onClick={() => exportRuns(runs, "json")} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border">
                   <Download size={10} /> JSON
                 </button>
-              </div>
-            )}
+              </>)}
+            </div>
           </div>
+          {compareMode && (
+            <p className="text-[10px] text-muted-foreground">
+              {!compareA ? "첫 번째 Run을 선택하세요" : !compareB ? "두 번째 Run을 선택하세요" : "비교 중"}
+            </p>
+          )}
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -264,11 +325,21 @@ export default function RunsPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {runs.map((run) => (
+              {runs.map((run) => {
+                const isA = compareA?.id === run.id;
+                const isB = compareB?.id === run.id;
+                return (
                 <button
                   key={run.id}
-                  onClick={() => setSelected(run)}
+                  onClick={() => {
+                    if (!compareMode) { setSelected(run); return; }
+                    if (!compareA) { setCompareA(run); }
+                    else if (!compareB && run.id !== compareA.id) { setCompareB(run); }
+                    else { setCompareA(run); setCompareB(null); }
+                  }}
                   className={`w-full text-left px-4 py-3 hover:bg-accent/50 transition-colors ${
+                    isA ? "bg-blue-500/10 border-l-2 border-blue-400" :
+                    isB ? "bg-green-500/10 border-l-2 border-green-400" :
                     selected?.id === run.id ? "bg-accent" : ""
                   }`}
                 >
@@ -292,12 +363,17 @@ export default function RunsPage() {
                     <span className="text-xs text-muted-foreground">
                       {run.durationMs}ms
                     </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {new Date(run.createdAt + "Z").toLocaleTimeString("ko-KR")}
-                    </span>
+                    {isA && <span className="text-[10px] text-blue-400 ml-auto font-medium">A</span>}
+                    {isB && <span className="text-[10px] text-green-400 ml-auto font-medium">B</span>}
+                    {!isA && !isB && (
+                      <span className="text-xs text-muted-foreground ml-auto">
+                        {new Date(run.createdAt + "Z").toLocaleTimeString("ko-KR")}
+                      </span>
+                    )}
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
@@ -334,7 +410,10 @@ export default function RunsPage() {
         </div>
       </div>
 
-      {/* Detail Panel */}
+      {/* Compare / Detail Panel */}
+      {compareMode && compareA && compareB ? (
+        <CompareView runA={compareA} runB={compareB} onClose={() => { setCompareMode(false); setCompareA(null); setCompareB(null); }} />
+      ) : (
       <ScrollArea className="flex-1">
         <div className="p-6">
           {selected ? (
@@ -402,11 +481,12 @@ export default function RunsPage() {
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-              왼쪽에서 Run을 선택하면 상세 내용이 표시됩니다
+              {compareMode ? "A, B 두 Run을 선택하면 비교가 시작됩니다" : "왼쪽에서 Run을 선택하면 상세 내용이 표시됩니다"}
             </div>
           )}
         </div>
       </ScrollArea>
+      )}
     </div>
   );
 }
