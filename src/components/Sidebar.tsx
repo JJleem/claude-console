@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
+import { useEffect, useState } from "react";
 
 const navItems = [
   { href: "/",        icon: LayoutDashboard, label: "Overview" },
@@ -37,17 +38,41 @@ const navItems = [
   { href: "/context", icon: Layers,          label: "Context" },
   { href: "/ignore",  icon: ShieldOff,       label: "Ignore" },
   { href: "/mcp",     icon: Wifi,            label: "MCP" },
-  { href: "/settings",icon: Settings,        label: "Settings" },
+  { href: "/settings",icon: Settings,        label: "Settings", budgetAlert: true },
   { href: "/eval",    icon: FlaskConical,    label: "Eval" },
   { href: "/ab",      icon: GitCompare,      label: "A/B Test" },
   { href: "/live",    icon: Radio,           label: "Live", live: true },
   { href: "/lab",     icon: TestTube,        label: "AI Lab" },
 ];
 
+function useBudgetAlert() {
+  const [exceeded, setExceeded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function check() {
+      try {
+        const res = await fetch("/api/budget");
+        const data = await res.json();
+        if (!cancelled) setExceeded(data.today.exceeded || data.month.exceeded);
+      } catch { /* ignore */ }
+    }
+
+    check();
+    // Re-check every 5 minutes
+    const id = setInterval(check, 5 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  return exceeded;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const { selectedProject } = useProject();
   const { theme, toggle } = useTheme();
+  const budgetExceeded = useBudgetAlert();
 
   return (
     <aside className="w-56 shrink-0 flex flex-col border-r border-border bg-sidebar h-screen sticky top-0">
@@ -64,6 +89,7 @@ export function Sidebar() {
               ? pathname === "/"
               : pathname.startsWith(item.href);
           const Icon = item.icon;
+          const showAlert = item.budgetAlert && budgetExceeded;
 
           return (
             <Link
@@ -87,6 +113,9 @@ export function Sidebar() {
               <span>{item.label}</span>
               {item.live && (
                 <span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              )}
+              {showAlert && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" title="예산 초과" />
               )}
             </Link>
           );

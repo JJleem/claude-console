@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useProject } from "@/lib/project-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight, Info, X, GitCompare, Download } from "lucide-react";
+import { Save, GitBranch, Clock, FileText, AtSign, ChevronRight, Info, X, GitCompare, Download, Sparkles, RotateCcw } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 import type { PromptVersion } from "@/lib/db/schema";
@@ -59,6 +59,98 @@ function extractAtRefs(text: string): string[] {
   return [...new Set(matches)];
 }
 
+// ── AI Analysis Panel ─────────────────────────────────────────────────────────
+function AnalysisPanel({ content, onClose }: { content: string; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [done, setDone] = useState(false);
+  const [running, setRunning] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const run = useCallback(async () => {
+    setText("");
+    setDone(false);
+    setRunning(true);
+    try {
+      const res = await fetch("/api/prompts/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.body) return;
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done: d, value } = await reader.read();
+        if (d) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const raw = line.slice(6);
+            if (raw === "[DONE]") { setDone(true); continue; }
+            try {
+              const { text: t } = JSON.parse(raw);
+              setText((prev) => prev + t);
+            } catch { /* skip */ }
+          }
+        }
+      }
+    } finally {
+      setRunning(false);
+    }
+  }, [content]);
+
+  useEffect(() => { run(); }, [run]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [text]);
+
+  return (
+    <div className="w-80 shrink-0 border-l border-border flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+        <Sparkles size={13} className="text-primary" />
+        <span className="text-xs font-medium text-foreground flex-1">AI 분석</span>
+        {done && (
+          <button
+            onClick={run}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="다시 분석"
+          >
+            <RotateCcw size={12} />
+          </button>
+        )}
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <X size={13} />
+        </button>
+      </div>
+
+      {/* Content */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
+        {!text && running && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            분석 중...
+          </div>
+        )}
+        {text && (
+          <pre className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed font-sans">
+            {text}
+            {running && <span className="inline-block w-1 h-3 bg-primary ml-0.5 animate-pulse align-text-bottom" />}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function PromptsPage() {
   const { selectedProject } = useProject();
   const [content, setContent] = useState("");
@@ -69,6 +161,7 @@ export default function PromptsPage() {
   const [showVersionSave, setShowVersionSave] = useState(false);
   const [tipsDismissed, setTipsDismissed] = useState(false);
   const [diffVersion, setDiffVersion] = useState<PromptVersion | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const isDirty = content !== savedContent;
   const tokenCount = estimateTokens(content);
@@ -194,6 +287,15 @@ export default function PromptsPage() {
                 수정됨
               </Badge>
             )}
+            <Button
+              size="sm"
+              variant={showAnalysis ? "default" : "outline"}
+              onClick={() => setShowAnalysis((v) => !v)}
+              disabled={!content.trim()}
+            >
+              <Sparkles size={13} className="mr-1" />
+              AI 분석
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -324,6 +426,11 @@ export default function PromptsPage() {
           )}
         </div>
       </div>
+
+      {/* AI Analysis Panel */}
+      {showAnalysis && (
+        <AnalysisPanel content={content} onClose={() => setShowAnalysis(false)} />
+      )}
 
       {/* Version History Panel */}
       <div className="w-64 shrink-0 border-l border-border flex flex-col">

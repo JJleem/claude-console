@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Layers, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Layers, RefreshCw, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { ProjectSwitcher } from "@/components/ProjectSwitcher";
 import { NoProjectSelected } from "@/components/NoProjectSelected";
 import { useProject } from "@/lib/project-context";
@@ -16,6 +16,8 @@ const CATEGORY_STYLE: Record<string, { bg: string; text: string; border: string 
   skills:    { bg: "bg-amber-500",   text: "text-amber-400",   border: "border-amber-500/30"   },
   agents:    { bg: "bg-green-500",   text: "text-green-400",   border: "border-green-500/30"   },
   settings:  { bg: "bg-rose-500",    text: "text-rose-400",    border: "border-rose-500/30"    },
+  hooks:     { bg: "bg-orange-500",  text: "text-orange-400",  border: "border-orange-500/30"  },
+  mcp:       { bg: "bg-cyan-500",    text: "text-cyan-400",    border: "border-cyan-500/30"    },
 };
 
 function FileRow({ file, expanded, onToggle }: { file: ContextFile; expanded: boolean; onToggle: () => void }) {
@@ -27,7 +29,7 @@ function FileRow({ file, expanded, onToggle }: { file: ContextFile; expanded: bo
       >
         <span className="text-xs font-mono text-foreground flex-1 truncate">{file.filename}</span>
         <span className="text-xs font-mono text-muted-foreground shrink-0">
-          {file.tokens.toLocaleString()} tokens
+          ~{file.tokens.toLocaleString()} tokens
         </span>
         {expanded ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />}
       </div>
@@ -54,7 +56,7 @@ function CategorySection({ category, expanded, onToggle }: {
           {category.label}
         </Badge>
         <span className="text-xs font-mono text-foreground">
-          {category.tokens.toLocaleString()}
+          ~{category.tokens.toLocaleString()}
         </span>
         <span className="text-xs text-muted-foreground">tokens</span>
         <span className="text-xs text-muted-foreground/50">·</span>
@@ -108,6 +110,9 @@ export default function ContextPage() {
 
   const pct = data ? ((data.totalTokens / data.contextLimit) * 100) : 0;
 
+  // Categories with at least one file (skip empties for the bar)
+  const nonEmptyCats = data?.categories.filter(c => c.tokens > 0) ?? [];
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
@@ -129,38 +134,53 @@ export default function ContextPage() {
           {/* Token summary bar */}
           {data && (
             <div className="px-6 py-4 border-b border-border shrink-0 space-y-3">
+              {/* Total */}
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  총 <span className="font-mono text-foreground">~{data.totalTokens.toLocaleString()}</span> / {data.contextLimit.toLocaleString()} tokens
+                  {data.totalTokensFallback ? "≈" : ""}<span className="font-mono text-foreground">{data.totalTokens.toLocaleString()}</span>
+                  <span className="ml-1">/ {data.contextLimit.toLocaleString()} tokens</span>
                 </span>
-                <span className="text-xs font-mono text-muted-foreground">~{pct.toFixed(2)}% used</span>
+                <span className="text-xs font-mono text-muted-foreground">{pct.toFixed(2)}% used</span>
               </div>
-              <p className="text-[10px] text-muted-foreground/50">
-                ※ tiktoken(cl100k_base) 기반 추정값입니다. Anthropic 토크나이저와 다를 수 있습니다.
-              </p>
+
+              {/* System prompt warning */}
+              <div className="flex items-start gap-2 bg-amber-500/8 border border-amber-500/20 rounded-md px-3 py-2">
+                <Info size={12} className="text-amber-400 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-amber-400/80 leading-relaxed">
+                  Claude Code 내부 system prompt (~30,000–50,000 tokens)는 포함되지 않습니다. 실제 컨텍스트 사용량은 이보다 높습니다.
+                  {data.totalTokensFallback && " · API 키 미설정으로 tiktoken 추정값을 사용 중입니다."}
+                </p>
+              </div>
 
               {/* Stacked bar */}
               <div className="h-2.5 rounded-full bg-secondary overflow-hidden flex">
-                {data.categories.map((cat) => (
+                {nonEmptyCats.map((cat) => (
                   <div
                     key={cat.id}
                     style={{ width: `${(cat.tokens / data.contextLimit) * 100}%` }}
                     className={`${CATEGORY_STYLE[cat.id].bg} h-full transition-all`}
-                    title={`${cat.label}: ${cat.tokens.toLocaleString()} tokens`}
+                    title={`${cat.label}: ~${cat.tokens.toLocaleString()} tokens`}
                   />
                 ))}
               </div>
 
               {/* Legend */}
               <div className="flex gap-4 flex-wrap">
-                {data.categories.map((cat) => (
+                {nonEmptyCats.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-1.5">
                     <span className={`w-2 h-2 rounded-sm ${CATEGORY_STYLE[cat.id].bg} shrink-0`} />
                     <span className="text-xs text-muted-foreground">{cat.label}</span>
-                    <span className="text-xs font-mono text-foreground">{cat.tokens.toLocaleString()}</span>
+                    <span className="text-xs font-mono text-foreground">~{cat.tokens.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
+
+              {/* Token count source note */}
+              <p className="text-[10px] text-muted-foreground/40">
+                {data.totalTokensFallback
+                  ? "※ 전체 합계: tiktoken(cl100k_base) 추정값"
+                  : "※ 전체 합계: Anthropic countTokens API (정확) · 파일별: tiktoken 추정값"}
+              </p>
             </div>
           )}
 
