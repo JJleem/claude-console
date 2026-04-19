@@ -11,8 +11,87 @@ import { useProject } from "@/lib/project-context";
 import type { Project } from "@/lib/db/schema";
 import {
   FolderOpen, FolderSearch, Plus, Trash2, CheckCircle2, Circle,
-  KeyRound, AlertCircle, ChevronRight, Home, ArrowLeft,
+  KeyRound, AlertCircle, ChevronRight, Home, ArrowLeft, Download,
 } from "lucide-react";
+
+type SessionMeta = {
+  sessionId: string;
+  projectKey: string;
+  filePath: string;
+  messageCount: number;
+  firstTs: string;
+  lastTs: string;
+};
+
+function SessionImporter() {
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [imported, setImported] = useState<Record<string, number>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch("/api/sessions");
+    setSessions(await res.json());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleImport(s: SessionMeta) {
+    setImporting(s.sessionId);
+    const res = await fetch("/api/sessions/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filePath: s.filePath, sessionId: s.sessionId }),
+    });
+    const data = await res.json();
+    setImported((prev) => ({ ...prev, [s.sessionId]: data.imported }));
+    setImporting(null);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Download size={14} className="text-muted-foreground" />
+        <h2 className="text-sm font-medium text-foreground">세션 임포트</h2>
+        <p className="text-xs text-muted-foreground">— ~/.claude/projects 대화 기록 → Runs</p>
+      </div>
+      {loading ? (
+        <Card><CardContent className="py-3 px-4 text-xs text-muted-foreground">로딩 중...</CardContent></Card>
+      ) : sessions.length === 0 ? (
+        <Card><CardContent className="py-3 px-4 text-xs text-muted-foreground">감지된 세션이 없습니다</CardContent></Card>
+      ) : (
+        <div className="space-y-1.5">
+          {sessions.map((s) => (
+            <div key={s.sessionId} className="flex items-center gap-3 px-3 py-2.5 rounded-md border border-border hover:border-primary/30 transition-colors">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-mono text-foreground truncate">{s.sessionId.slice(0, 8)}…</p>
+                <p className="text-[10px] text-muted-foreground truncate">{s.projectKey.replace(/^-Users-[^-]+-/, "~/")} · {s.messageCount}개 메시지</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(s.lastTs).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {imported[s.sessionId] !== undefined ? (
+                <Badge variant="secondary" className="text-xs shrink-0">{imported[s.sessionId]}개 임포트됨</Badge>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 h-7 text-xs"
+                  disabled={importing === s.sessionId}
+                  onClick={() => handleImport(s)}
+                >
+                  {importing === s.sessionId ? "임포트 중..." : "임포트"}
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type ScannedProject = { key: string; detectedPath: string | null };
 type FsEntry = { name: string; path: string; hasClaude: boolean };
@@ -327,6 +406,10 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      <Separator />
+
+      <SessionImporter />
 
       <Separator />
 
