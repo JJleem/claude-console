@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Search, X } from "lucide-react";
+import { Search, X, Download } from "lucide-react";
 import type { Run } from "@/lib/db/schema";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -49,6 +49,38 @@ function SourceBadge({ source }: { source: string }) {
       {label}
     </span>
   );
+}
+
+function exportRuns(runs: Run[], format: "csv" | "json") {
+  const source = (r: Run) => parseSource(r.metadata);
+  let blob: Blob;
+  let filename: string;
+
+  if (format === "json") {
+    const data = runs.map((r) => ({
+      id: r.id, createdAt: r.createdAt, model: r.model, source: source(r),
+      inputTokens: r.inputTokens, outputTokens: r.outputTokens,
+      costUsd: r.costUsd, durationMs: r.durationMs,
+      systemPrompt: r.systemPrompt ?? "", userPrompt: r.userPrompt, response: r.response,
+    }));
+    blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    filename = `runs-${Date.now()}.json`;
+  } else {
+    const escape = (s: string) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const header = ["id","createdAt","model","source","inputTokens","outputTokens","costUsd","durationMs","userPrompt","systemPrompt","response"].join(",");
+    const rows = runs.map((r) => [
+      escape(r.id), escape(r.createdAt), escape(r.model), escape(source(r)),
+      r.inputTokens, r.outputTokens, r.costUsd, r.durationMs,
+      escape(r.userPrompt), escape(r.systemPrompt ?? ""), escape(r.response),
+    ].join(","));
+    blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    filename = `runs-${Date.now()}.csv`;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function RunsPage() {
@@ -97,7 +129,25 @@ export default function RunsPage() {
       {/* Run List */}
       <div className="w-96 shrink-0 border-r border-border flex flex-col">
         <div className="px-5 py-4 border-b border-border space-y-2">
-          <h1 className="text-sm font-semibold text-foreground">Runs</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-sm font-semibold text-foreground">Runs</h1>
+            {runs.length > 0 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => exportRuns(runs, "csv")}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border"
+                >
+                  <Download size={10} /> CSV
+                </button>
+                <button
+                  onClick={() => exportRuns(runs, "json")}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors border border-border"
+                >
+                  <Download size={10} /> JSON
+                </button>
+              </div>
+            )}
+          </div>
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
