@@ -17,7 +17,7 @@ Local developer dashboard for Claude Code. Next.js App Router + Drizzle ORM + SQ
 - After any schema change: `npx drizzle-kit push`
 
 ## What's Done
-/ /runs /prompts /hooks /skills /memory /agents /settings /live /eval /ab /context /mcp /ignore /lab
+/ /runs /prompts /hooks /skills /memory /agents /settings /live /eval /ab /context /mcp /ignore /lab /heatmap
 
 - Context Viewer: Anthropic countTokens API로 정확한 토큰 측정, Hooks·MCP 카테고리 포함
 - Streaming: Eval 결과 하나씩 스트리밍, A/B judge 토큰 단위 실시간 출력
