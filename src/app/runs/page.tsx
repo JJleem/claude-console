@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,95 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Search, X, Download } from "lucide-react";
+import { Search, X, Download, BookMarked, Trash2, Plus } from "lucide-react";
+
+type Template = { id: string; name: string; content: string; createdAt: string };
+
+function TemplatePicker({ onSelect, currentSystem }: { onSelect: (content: string) => void; currentSystem: string }) {
+  const [open, setOpen] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [showSave, setShowSave] = useState(false);
+  const [pendingContent, setPendingContent] = useState("");
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/templates");
+    setTemplates(await res.json());
+  }, []);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  async function handleDelete(id: string) {
+    await fetch("/api/templates", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    load();
+  }
+
+  async function handleSave() {
+    if (!newName.trim() || !pendingContent.trim()) return;
+    setSaving(true);
+    await fetch("/api/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName, content: pendingContent }) });
+    setNewName(""); setShowSave(false); setSaving(false);
+    load();
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <BookMarked size={11} />
+        템플릿
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 w-72 bg-background border border-border rounded-md shadow-lg z-50">
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">System Prompt 템플릿</span>
+            <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground"><X size={11} /></button>
+          </div>
+          <div className="max-h-48 overflow-y-auto divide-y divide-border">
+            {templates.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">저장된 템플릿이 없습니다</p>
+            ) : templates.map((t) => (
+              <div key={t.id} className="flex items-center gap-2 px-3 py-2 hover:bg-accent/30 group">
+                <button className="flex-1 text-left text-xs text-foreground truncate" onClick={() => { onSelect(t.content); setOpen(false); }}>
+                  {t.name}
+                </button>
+                <button onClick={() => handleDelete(t.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-colors">
+                  <Trash2 size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="px-3 py-2 border-t border-border">
+            {showSave ? (
+              <div className="flex gap-1">
+                <input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="템플릿 이름"
+                  className="flex-1 text-xs bg-secondary border border-border rounded px-2 py-1 text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                  autoFocus
+                />
+                <button onClick={handleSave} disabled={saving} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground">저장</button>
+                <button onClick={() => setShowSave(false)} className="text-xs px-2 py-1 rounded border border-border text-muted-foreground">취소</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setPendingContent(currentSystem); setShowSave(true); }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground w-full"
+              >
+                <Plus size={10} /> 현재 system prompt 저장하기
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 import type { Run } from "@/lib/db/schema";
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -217,6 +305,10 @@ export default function RunsPage() {
 
         {/* Test Prompt */}
         <div className="border-t border-border p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground">System prompt</span>
+            <TemplatePicker onSelect={(c) => setSystem(c)} currentSystem={system} />
+          </div>
           <Textarea
             value={system}
             onChange={(e) => setSystem(e.target.value)}
