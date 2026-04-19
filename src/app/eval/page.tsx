@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FlaskConical, Loader2, ArrowDownLeft, ArrowUpRight, Clock, DollarSign, ListChecks } from "lucide-react";
+import { FlaskConical, Loader2, ArrowDownLeft, ArrowUpRight, Clock, DollarSign, ListChecks, Zap } from "lucide-react";
 import type { Run } from "@/lib/db/schema";
 
 type EvalResult = {
@@ -73,6 +73,11 @@ export default function EvalPage() {
   const [recentRuns, setRecentRuns] = useState<Run[]>([]);
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
+  // 자동 Eval
+  const [autoEval, setAutoEval] = useState(false);
+  const [unscoredCount, setUnscoredCount] = useState(0);
+  const autoEvalRef = useRef(false);
+
   async function fetchResults() {
     const res = await fetch("/api/eval");
     const data = await res.json();
@@ -85,7 +90,71 @@ export default function EvalPage() {
     setRecentRuns(data);
   }
 
-  useEffect(() => { fetchResults(); }, []);
+  const checkUnscored = useCallback(async () => {
+    const res = await fetch("/api/eval/auto");
+    const data = await res.json();
+    setUnscoredCount(data.count);
+    return data.unscored as { id: string }[];
+  }, []);
+
+  // Auto-eval polling loop
+  useEffect(() => {
+    autoEvalRef.current = autoEval;
+    if (!autoEval) return;
+
+    let cancelled = false;
+
+    async function tick() {
+      if (cancelled || !autoEvalRef.current) return;
+      const unscored = await checkUnscored();
+      if (unscored.length > 0 && !cancelled && autoEvalRef.current) {
+        const ids = unscored.slice(0, 5).map((r) => r.id);
+        setProgress(`자동 Eval: ${ids.length}개 미채점 run 발견 → 채점 시작`);
+        setLoading(true);
+        try {
+          const res = await fetch("/api/eval/stream", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ runIds: ids, model }),
+          });
+          if (res.body) {
+            const reader = res.body.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done || cancelled) break;
+              buf += dec.decode(value, { stream: true });
+              const lines = buf.split("\n\n");
+              buf = lines.pop() ?? "";
+              for (const line of lines) {
+                if (!line.startsWith("data: ")) continue;
+                const data = JSON.parse(line.slice(6));
+                if (data.type === "eval_result") {
+                  setResults((prev) => {
+                    if (prev.some((r) => r.evaluation.id === data.result.evaluation.id)) return prev;
+                    return [data.result, ...prev];
+                  });
+                }
+                if (data.type === "progress") setProgress(data.message);
+              }
+            }
+          }
+        } finally {
+          setLoading(false);
+          setProgress("");
+          if (!cancelled) await checkUnscored();
+        }
+      }
+      // Next tick in 60s
+      if (!cancelled && autoEvalRef.current) setTimeout(tick, 60_000);
+    }
+
+    tick();
+    return () => { cancelled = true; };
+  }, [autoEval, checkUnscored, model]);
+
+  useEffect(() => { fetchResults(); checkUnscored(); }, [checkUnscored]);
 
   function togglePickMode() {
     setPickMode((v) => {
@@ -370,6 +439,23 @@ export default function EvalPage() {
               </div>
             </div>
           )}
+
+          {/* 자동 Eval 토글 */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-secondary/30">
+            <Zap size={12} className={autoEval ? "text-amber-400" : "text-muted-foreground"} />
+            <span className="text-xs text-foreground flex-1">자동 Eval</span>
+            {unscoredCount > 0 && (
+              <Badge variant="outline" className="text-[10px] px-1 h-4 border-amber-500/40 text-amber-400">
+                {unscoredCount}개 대기
+              </Badge>
+            )}
+            <button
+              onClick={() => setAutoEval((v) => !v)}
+              className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${autoEval ? "bg-amber-400" : "bg-secondary border border-border"}`}
+            >
+              <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${autoEval ? "translate-x-3.5" : "translate-x-0.5"}`} />
+            </button>
+          </div>
 
           <Button
             onClick={runEval}
