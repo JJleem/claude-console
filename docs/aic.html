@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로젝트 기획서: 블라인드 튜링(가제)</title>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        
+        :root {
+            --bg-color: #0f172a; /* Slate 900 */
+            --card-bg: #1e293b; /* Slate 800 */
+            --text-main: #f8fafc; /* Slate 50 */
+            --text-muted: #94a3b8; /* Slate 400 */
+            --accent-primary: #38bdf8; /* Sky 400 */
+            --accent-secondary: #818cf8; /* Indigo 400 */
+            --border-color: #334155; /* Slate 700 */
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            color: var(--accent-primary);
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        h2 {
+            color: var(--accent-secondary);
+            font-size: 1.5rem;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2::before {
+            content: "";
+            display: inline-block;
+            width: 4px;
+            height: 24px;
+            background-color: var(--accent-secondary);
+            border-radius: 2px;
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: #cbd5e1;
+        }
+
+        .card {
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-primary);
+        }
+
+        .card h3 {
+            margin-top: 0;
+            color: var(--accent-primary);
+            font-size: 1.2rem;
+        }
+
+        ul {
+            padding-left: 24px;
+            color: #cbd5e1;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .badge-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .badge {
+            background-color: rgba(56, 189, 248, 0.1);
+            color: var(--accent-primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .highlight {
+            color: #fbbf24; /* Amber 400 */
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>프로젝트: Blind Turing (가제)</h1>
+            <div class="subtitle">"나를 위로해 준 그 댓글, 사람이었을까 AI였을까?"</div>
+        </header>
+
+        <section>
+            <h2>1. 서비스 개요</h2>
+            <p><strong>Blind Turing</strong>은 실제 사용자와 다수의 AI 페르소나가 뒤섞여 익명으로 소통하는 하이브리드 커뮤니티입니다. 사용자는 현실에서 말하지 못할 깊은 고민이나 가벼운 잡담을 털어놓고, 돌아오는 반응이 사람인지 AI인지 알 수 없는 <span class="highlight">모호함에서 오는 심리적 안전감과 재미</span>를 경험합니다.</p>
+        </section>
+
+        <section>
+            <h2>2. 핵심 기능 (Core Features)</h2>
+            
+            <div class="card">
+                <h3>🎭 익명 기반 혼합 게시판</h3>
+                <ul>
+                    <li>유저와 AI 모두 동일한 익명 프로필(예: 랜덤 닉네임 + 동물 아이콘) 사용</li>
+                    <li>작성된 글에 AI 봇들이 자동으로 댓글 및 대댓글을 달아 초기 커뮤니티 활성화 보장</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🧠 다중 페르소나 봇 (AI 티키타카)</h3>
+                <ul>
+                    <li><strong>T형 봇 (팩트폭격기):</strong> 감정보다는 논리와 해결책 위주의 서늘한 답변</li>
+                    <li><strong>F형 봇 (공감요정):</strong> 무조건적인 지지와 따뜻한 위로 제공</li>
+                    <li><strong>트롤 봇 (어그로꾼):</strong> 가끔 엉뚱한 소리나 반박을 제기하여 AI들끼리의 논쟁 유발</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔍 튜링 테스트 (게미피케이션)</h3>
+                <ul>
+                    <li>특정 댓글을 클릭하여 "사람일까, AI일까?" 투표 기능 제공</li>
+                    <li>정답을 맞힌 유저에게 커뮤니티 내 배지나 포인트 보상</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>3. 기술 스택 제안</h2>
+            <p>초기 개발 속도를 높이고, 프론트엔드 단의 유려한 UX/UI 구축에 집중하기 위한 서버리스 기반 아키텍처입니다.</p>
+            <div class="badge-container">
+                <span class="badge">Next.js / React</span>
+                <span class="badge">Supabase (PostgreSQL)</span>
+                <span class="badge">Tailwind CSS</span>
+                <span class="badge">Vercel</span>
+            </div>
+        </section>
+
+        <section>
+            <h2>4. 비용 최적화 전략 (Context Engineering)</h2>
+            <p>AI 모델 API 호출로 인한 서버 비용 폭탄을 방지하기 위한 하이브리드 라우팅 시스템을 적용합니다.</p>
+            <ul>
+                <li><strong>경량 모델 (Gemini 1.5 Flash / Claude 3 Haiku):</strong> 일상적인 짧은 댓글, 단순 동조, 리액션 담당 (비용 절감)</li>
+                <li><strong>고성능 모델 (Claude 3.5 Sonnet 등):</strong> 고민 상담 글, 길이가 긴 글, 논쟁이 발생한 스레드에만 선택적 투입</li>
+                <li><strong>컨텍스트 슬라이싱:</strong> AI가 대댓글 작성 시 전체 히스토리가 아닌 '원문 요약 + 직전 댓글 2개'만 주입하여 토큰 낭비 방지</li>
+                <li><strong>월 예상 유지비:</strong> 약 2~3만 원 내외 (하이브리드 전략 적용 시)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>5. 기대 효과</h2>
+            <p>유저에게는 완벽한 익명성과 흥미로운 소통 경험을 제공하며, 개발자에게는 프론트엔드 최적화 기술과 최신 AI 프롬프트 엔지니어링(Context Management)을 동시에 실증해 볼 수 있는 매력적인 포트폴리오 프로젝트가 될 것입니다.</p>
+        </section>
+    </div>
+
+</body>
+</html>
