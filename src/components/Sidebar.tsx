@@ -22,7 +22,6 @@ import {
   ShieldOff,
   Wifi,
   TestTube,
-  LayoutGrid,
 } from "lucide-react";
 import { useProject } from "@/lib/project-context";
 import { useTheme } from "@/lib/theme-context";
@@ -37,7 +36,6 @@ const navItems = [
   { href: "/skills",  icon: Zap,             label: "Skills" },
   { href: "/memory",  icon: Brain,           label: "Memory" },
   { href: "/context", icon: Layers,          label: "Context" },
-  { href: "/heatmap", icon: LayoutGrid,      label: "Heatmap" },
   { href: "/ignore",  icon: ShieldOff,       label: "Ignore" },
   { href: "/mcp",     icon: Wifi,            label: "MCP" },
   { href: "/settings",icon: Settings,        label: "Settings", budgetAlert: true },

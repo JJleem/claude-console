@@ -6,6 +6,136 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { ExternalLink, TrendingUp, Zap, DollarSign, Hash, RefreshCw } from "lucide-react";
+
+// ── Heatmap types ─────────────────────────────────────────────────────────────
+type HourStat = { hour: number; tokens: number; calls: number };
+type DowStat  = { dow: number; label: string; tokens: number; calls: number };
+type GridCell = { dow: number; hour: number; tokens: number };
+type HeatmapData = { byHour: HourStat[]; byDow: DowStat[]; grid: GridCell[] };
+
+const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function fmtTok(t: number) {
+  if (t >= 1_000_000) return `${(t / 1_000_000).toFixed(1)}M`;
+  if (t >= 1_000) return `${(t / 1_000).toFixed(1)}K`;
+  return String(t);
+}
+
+function HourBarChart({ data }: { data: HourStat[] }) {
+  const max = Math.max(...data.map((d) => d.tokens), 1);
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">Tokens by Hour (UTC)</CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <div className="flex items-end gap-px h-16">
+          {data.map((d) => {
+            const pct = d.tokens / max;
+            return (
+              <div key={d.hour} className="flex-1 flex flex-col items-center group relative">
+                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:flex z-10 pointer-events-none">
+                  <div className="bg-popover border border-border rounded px-2 py-1 text-[10px] text-foreground whitespace-nowrap shadow-md">
+                    {d.hour}:00 — {fmtTok(d.tokens)} · {d.calls}회
+                  </div>
+                </div>
+                <div className="w-full rounded-sm bg-primary" style={{ height: `${Math.max(pct * 56, d.tokens > 0 ? 2 : 0)}px`, opacity: 0.15 + pct * 0.85 }} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex mt-1">
+          {data.map((d) => (
+            <div key={d.hour} className="flex-1 text-center text-[8px] text-muted-foreground/50">{d.hour % 6 === 0 ? d.hour : ""}</div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DowBarChart({ data }: { data: DowStat[] }) {
+  const max = Math.max(...data.map((d) => d.tokens), 1);
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">Tokens by Day of Week</CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4">
+        <div className="flex items-end gap-1.5 h-16">
+          {data.map((d) => {
+            const pct = d.tokens / max;
+            return (
+              <div key={d.dow} className="flex-1 flex flex-col items-center gap-1 group relative">
+                <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:flex z-10 pointer-events-none">
+                  <div className="bg-popover border border-border rounded px-2 py-1 text-[10px] text-foreground whitespace-nowrap shadow-md">
+                    {d.label} — {fmtTok(d.tokens)} · {d.calls}회
+                  </div>
+                </div>
+                <div className="w-full rounded-sm bg-primary" style={{ height: `${Math.max(pct * 56, d.tokens > 0 ? 2 : 0)}px`, opacity: 0.15 + pct * 0.85 }} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex mt-1 gap-1.5">
+          {data.map((d) => (
+            <div key={d.dow} className="flex-1 text-center text-[9px] text-muted-foreground/60">{d.label.slice(0, 2)}</div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HeatmapGrid({ grid }: { grid: GridCell[] }) {
+  const maxT = Math.max(...grid.map((c) => c.tokens), 1);
+  const lookup: Record<number, Record<number, number>> = {};
+  for (const c of grid) { if (!lookup[c.dow]) lookup[c.dow] = {}; lookup[c.dow][c.hour] = c.tokens; }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <CardTitle className="text-xs text-muted-foreground uppercase tracking-wide">7 × 24 Heatmap (rows = day, cols = hour UTC)</CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 overflow-x-auto">
+        <div className="flex mb-1 ml-10">
+          {Array.from({ length: 24 }, (_, h) => (
+            <div key={h} className="flex-1 text-center text-[8px] text-muted-foreground/50 min-w-[18px]">{h % 6 === 0 ? h : ""}</div>
+          ))}
+        </div>
+        {DOW_LABELS.map((label, dow) => (
+          <div key={dow} className="flex items-center mb-0.5">
+            <span className="w-10 text-[9px] text-muted-foreground shrink-0">{label}</span>
+            <div className="flex flex-1 gap-px">
+              {Array.from({ length: 24 }, (_, h) => {
+                const tokens = lookup[dow]?.[h] ?? 0;
+                const opacity = tokens > 0 ? 0.12 + (tokens / maxT) * 0.88 : 0.06;
+                return (
+                  <div key={h} className="flex-1 rounded-sm bg-primary group relative" style={{ height: 18, minWidth: 18, opacity }}>
+                    {tokens > 0 && (
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex z-10 pointer-events-none">
+                        <div className="bg-popover border border-border rounded px-2 py-1 text-[10px] text-foreground whitespace-nowrap shadow-md">
+                          {label} {h}:00 — {fmtTok(tokens)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        <div className="flex items-center gap-2 mt-3">
+          <span className="text-[9px] text-muted-foreground">Less</span>
+          {[0.06, 0.25, 0.45, 0.65, 0.88].map((op) => (
+            <div key={op} className="w-4 h-3 rounded-sm bg-primary" style={{ opacity: op }} />
+          ))}
+          <span className="text-[9px] text-muted-foreground">More</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 import { Button } from "@/components/ui/button";
 
 type DayStat  = { date: string; calls: number; cost: number; tokens: number };
@@ -84,13 +214,15 @@ function PctBar({ pct, color }: { pct: number; color: string }) {
 
 export default function OverviewPage() {
   const [data, setData] = useState<OverviewData | null>(null);
+  const [heatmap, setHeatmap] = useState<HeatmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartMode, setChartMode] = useState<"calls" | "cost">("calls");
 
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/overview");
-    setData(await res.json());
+    const [ov, hm] = await Promise.all([fetch("/api/overview"), fetch("/api/heatmap")]);
+    setData(await ov.json());
+    setHeatmap(await hm.json());
     setLoading(false);
   }
 
@@ -265,6 +397,17 @@ export default function OverviewPage() {
           )}
         </Card>
       </div>
+
+      {/* Heatmap */}
+      {heatmap && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <HourBarChart data={heatmap.byHour} />
+            <DowBarChart data={heatmap.byDow} />
+          </div>
+          <HeatmapGrid grid={heatmap.grid} />
+        </div>
+      )}
     </div>
   );
 }
